@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
-const { initDb, getDb, saveDb, nextId, ensureDbReady } = require('./db');
+const { initDb, getDb, saveDb, saveDbAsync, nextId, ensureDbReady } = require('./db');
 const { createAuthToken, parseAuthToken } = require('./auth-token');
 
 const app = express();
@@ -63,15 +63,23 @@ if (process.env.NETLIFY) {
 
 function resolveUserFromToken(token) {
   const jwt = parseAuthToken(token);
-  if (jwt) {
+  if (jwt?.user) {
     const db = getDb();
-    return db.users?.find((u) => u.id === jwt.uid) || null;
+    const dbUser = db.users?.find((u) => u.id === jwt.user.id);
+    if (dbUser) {
+      const { password, ...safe } = dbUser;
+      return safe;
+    }
+    return jwt.user;
   }
 
   const db = getDb();
   const session = db.sessions?.find((s) => s.token === token && s.expiresAt > new Date().toISOString());
   if (!session) return null;
-  return db.users?.find((u) => u.id === session.userId) || null;
+  const user = db.users?.find((u) => u.id === session.userId);
+  if (!user) return null;
+  const { password, ...safe } = user;
+  return safe;
 }
 
 // Middleware для проверки авторизации
@@ -91,7 +99,7 @@ function requireAuth(req, res, next) {
 }
 
 // Регистрация
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
   const db = getDb();
   const { email, password, name, telegram, role, referralCode } = req.body || {};
   
@@ -146,15 +154,15 @@ app.post('/api/auth/register', (req, res) => {
     }
   }
   
-  saveDb(db);
+  await saveDbAsync(db);
 
-  const token = createAuthToken(user.id);
   const { password: _, ...userPublic } = user;
+  const token = createAuthToken(userPublic);
   res.status(201).json({ user: userPublic, token });
 });
 
 // Логин
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const db = getDb();
   const { email, password } = req.body || {};
   
@@ -174,8 +182,8 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ error: 'Неверный email или пароль' });
   }
   
-  const token = createAuthToken(user.id);
   const { password: _, ...userPublic } = user;
+  const token = createAuthToken(userPublic);
   res.json({ user: userPublic, token });
 });
 

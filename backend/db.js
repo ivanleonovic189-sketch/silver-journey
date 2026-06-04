@@ -100,18 +100,24 @@ function loadDb() {
 
 function saveDb(data) {
   memoryCache = data;
-
-  if (isServerless) {
-    const dbPath = getDbPath();
-    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
-    saveToBlob(data).catch((err) => console.error('Blob save failed:', err));
-    return;
-  }
-
   const dbPath = getDbPath();
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
+
+  if (isServerless) {
+    saveToBlob(data).catch((err) => console.error('Blob save failed:', err));
+  }
+}
+
+async function saveDbAsync(data) {
+  memoryCache = data;
+  const dbPath = getDbPath();
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
+
+  if (isServerless) {
+    await saveToBlob(data);
+  }
 }
 
 function initDb() {
@@ -143,4 +149,4 @@ function ensureDbReady() {
   return initPromise;
 }
 
-module.exports = { initDb, initDbAsync, ensureDbReady, getDb, loadDb, saveDb, nextId };
+module.exports = { initDb, initDbAsync, ensureDbReady, getDb, loadDb, saveDb, saveDbAsync, nextId };

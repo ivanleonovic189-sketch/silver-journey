@@ -19,6 +19,11 @@ function readStoredSession() {
   if (!savedToken || !savedUser) {
     return { token: null, user: null, hasSession: false };
   }
+  if (!savedToken.includes('.')) {
+    localStorage.removeItem('enterPayToken');
+    localStorage.removeItem('enterPayUser');
+    return { token: null, user: null, hasSession: false };
+  }
   try {
     return { token: savedToken, user: JSON.parse(savedUser), hasSession: true };
   } catch {

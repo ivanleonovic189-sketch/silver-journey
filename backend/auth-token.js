@@ -2,9 +2,10 @@ const crypto = require('crypto');
 
 const AUTH_SECRET = process.env.AUTH_SECRET || 'enter-pay-dev-secret';
 
-function createAuthToken(userId) {
+function createAuthToken(user) {
+  const { password, ...publicUser } = user;
   const payload = JSON.stringify({
-    uid: userId,
+    user: publicUser,
     exp: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
   });
   const sig = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex');
@@ -22,6 +23,7 @@ function parseAuthToken(token) {
     if (sig !== expected) return null;
     const payload = JSON.parse(payloadStr);
     if (new Date(payload.exp) < new Date()) return null;
+    if (!payload.user?.id) return null;
     return payload;
   } catch {
     return null;
