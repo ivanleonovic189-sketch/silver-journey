@@ -27,6 +27,23 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Netlify Function: путь приходит как /auth/... вместо /api/auth/...
+if (process.env.NETLIFY) {
+  app.use((req, res, next) => {
+    const qIndex = req.url.indexOf('?');
+    const pathname = qIndex === -1 ? req.url : req.url.slice(0, qIndex);
+    const query = qIndex === -1 ? '' : req.url.slice(qIndex);
+    if (!pathname.startsWith('/api')) {
+      req.url = `/api${pathname}${query}`;
+    }
+    next();
+  });
+}
+
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, service: 'enter-pay-api' });
+});
+
 initDb();
 
 // ========== АВТОРИЗАЦИЯ ==========

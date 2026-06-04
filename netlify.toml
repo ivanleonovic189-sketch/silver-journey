@@ -1,21 +1,26 @@
 [build]
   command = "npm install && npm run install:all && cd frontend && npm run build"
   publish = "frontend/dist"
-  functions = "netlify/functions"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  included_files = ["backend/**"]
 
 [build.environment]
   NODE_VERSION = "20"
   NETLIFY = "true"
 
-# API → serverless backend (должен быть выше SPA-редиректа)
+# API → serverless backend (выше SPA-редиректа)
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
 
-# SPA
+# SPA — только GET, чтобы POST /api не отдавал index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  conditions = {Method = ["GET"]}
