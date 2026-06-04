@@ -2,20 +2,23 @@ import { useState, useEffect } from 'react';
 import TelegramIcon from './TelegramIcon';
 import { WalletIcon, DealsIcon, AppealsIcon, LockIcon, PlusIcon, InfoIcon } from './Icons';
 
+const TYPE_LABELS = { card_ru: 'Банковская карта', sbp: 'СБП' };
+
 export default function Dashboard({
   user,
   stats,
   transactions,
   merchants,
   paymentMethods,
+  merchantDevices = [],
   payoutRequests = [],
   onLogout,
   onTabChange,
   onWalletClick,
   usdtRate,
+  onDeviceToggleOnline,
 }) {
-  const [chartPeriod, setChartPeriod] = useState('day'); // 'day', 'week', 'month', or 'all'
-  const [showPeriodSelect, setShowPeriodSelect] = useState(false);
+  const chartPeriod = 'day';
   const [dealsPeriod, setDealsPeriod] = useState('all');
   const [payoutsPeriod, setPayoutsPeriod] = useState('all');
   const [appealsPeriod, setAppealsPeriod] = useState('all');
@@ -36,7 +39,6 @@ export default function Dashboard({
     conversion: { title: 'Конверсия по устройствам', text: 'Процент успешно оплаченных сделок по каждому способу приема. Показывает эффективность работы платежных методов в P2P.' },
     chat: { title: 'Рабочий чат', text: 'Telegram-чат для связи с операторами. Здесь можно задать вопросы, получить поддержку по сделкам. Операторы будут пинговать вас по апелляциям.' },
     curator: { title: 'Ваш куратор', text: 'Назначенный куратор предоставляет реферальную ссылку, мануалы по работе с системой и персональную поддержку. Куратор помогает новым мерчантам разобраться в P2P-операциях.' },
-    rate: { title: 'Процентная ставка', text: 'Комиссия в зависимости от суммы сделки. Чем выше объем, тем ниже ставка. Текущая ставка определяется размером страхового депозита.' },
   };
 
   useEffect(() => {
@@ -56,8 +58,7 @@ export default function Dashboard({
       const now = new Date();
       const chartPoints = [];
 
-      // День = 7 дней, Неделя = 7 дней, Месяц = 30 дней, Все время = 30 дней
-      const daysToShow = chartPeriod === 'day' || chartPeriod === 'week' ? 7 : 30;
+      const daysToShow = 7;
       for (let i = daysToShow - 1; i >= 0; i--) {
           const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
           const dayStart = new Date(date);
@@ -84,9 +85,7 @@ export default function Dashboard({
           const payoutRewards = dayPayoutRewards.reduce((sum, t) => sum + (t.commission ?? Math.round((t.baseAmount ?? t.amount) * 0.01)), 0);
           const earned = received - paid + payoutRewards;
 
-          const timeFmt = chartPeriod === 'day' || chartPeriod === 'week'
-            ? date.toLocaleDateString('ru', { weekday: 'short', day: '2-digit' })
-            : date.toLocaleDateString('ru', { day: '2-digit', month: '2-digit' });
+          const timeFmt = date.toLocaleDateString('ru', { weekday: 'short', day: '2-digit' });
           chartPoints.push({
             time: timeFmt,
             date: date.toISOString().split('T')[0],
@@ -106,34 +105,62 @@ export default function Dashboard({
 
       setChartData(chartPointsWithCumulative);
     }
-  }, [transactions, stats, chartPeriod, user]);
+  }, [transactions, stats, user]);
 
   // Закрываем dropdown при клике вне его
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showPeriodSelect && !event.target.closest('[data-period-select]')) setShowPeriodSelect(false);
       if (showDealsSelect && !event.target.closest('[data-period-select="deals"]')) setShowDealsSelect(false);
       if (showPayoutsSelect && !event.target.closest('[data-period-select="payouts"]')) setShowPayoutsSelect(false);
       if (showAppealsSelect && !event.target.closest('[data-period-select="appeals"]')) setShowAppealsSelect(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showPeriodSelect, showDealsSelect, showPayoutsSelect, showAppealsSelect]);
+  }, [showDealsSelect, showPayoutsSelect, showAppealsSelect]);
 
   const maxAmount = Math.max(...chartData.map((d) => d.amount), 1);
+  const maxEarned = Math.max(...chartData.map((d) => d.earned || 0), 1);
   const chartHeight = 140;
 
-  // Конверсия по методам оплаты
-  const conversionData = paymentMethods.map((method) => {
-    const methodTxs = transactions.filter((t) => t.paymentMethod === method.id);
-    const completed = methodTxs.filter((t) => t.status === 'completed').length;
-    const conversion = methodTxs.length > 0 ? Math.round((completed / methodTxs.length) * 100) : 0;
-    return {
-      name: method.name,
-      conversion,
-      bank: method.name.includes('СБП') ? 'СБП' : method.name.includes('карта') ? 'Банк' : 'Другое',
-    };
-  }).filter((d) => d.conversion > 0).sort((a, b) => b.conversion - a.conversion);
+  const norm = (s) => (s || '').replace(/\s/g, '').replace(/\D/g, '');
+  const last4 = (r) => (r || '').replace(/\D/g, '').slice(-4) || '****';
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+  // Конверсия: если есть наши устройства — показываем их; иначе — по методам оплаты
+  const conversionData = merchantDevices.length > 0
+    ? merchantDevices.map((device) => {
+        const methodTxs = transactions.filter((t) => t.paymentMethod === device.type);
+        const completed = methodTxs.filter((t) => t.status === 'completed').length;
+        const conversion = methodTxs.length > 0 ? Math.round((completed / methodTxs.length) * 100) : 0;
+        const deviceReqs = norm(device.requisites);
+        const usedToday = (payoutRequests || []).filter((r) => r.status === 'completed' && norm(r.requisites) === deviceReqs && new Date(r.completedAt || r.createdAt) >= todayStart && new Date(r.completedAt || r.createdAt) <= todayEnd).reduce((s, r) => s + (r.amount || 0), 0);
+        const usedTotal = (payoutRequests || []).filter((r) => r.status === 'completed' && norm(r.requisites) === deviceReqs).reduce((s, r) => s + (r.amount || 0), 0);
+        const maxDay = Number(device.maxTurnoverPerDay) || 0;
+        const maxTotal = Number(device.maxTurnoverTotal) || 0;
+        const limit = maxTotal > 0 ? maxTotal : (maxDay > 0 ? maxDay : 300000);
+        const used = maxTotal > 0 ? usedTotal : (maxDay > 0 ? usedToday : usedTotal);
+        const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+        return {
+          name: `${TYPE_LABELS[device.type] || device.type}${device.bank ? ` (${device.bank})` : ''} •••• ${last4(device.requisites)}`,
+          conversion,
+          used,
+          limit,
+          pct,
+          device,
+        };
+      }).sort((a, b) => b.conversion - a.conversion)
+    : paymentMethods.map((method) => {
+        const methodTxs = transactions.filter((t) => t.paymentMethod === method.id);
+        const completed = methodTxs.filter((t) => t.status === 'completed').length;
+        const conversion = methodTxs.length > 0 ? Math.round((completed / methodTxs.length) * 100) : 0;
+        return {
+          name: method.name,
+          conversion,
+          bank: method.name.includes('СБП') ? 'СБП' : method.name.includes('карта') ? 'Банк' : 'Другое',
+        };
+      }).filter((d) => d.conversion > 0).sort((a, b) => b.conversion - a.conversion);
 
   // Страховой депозит = пополнения вручную (merchant_deposit). Рабочий = с выплат (payout_reward).
   const insuranceDeposit = stats?.insuranceDeposit ?? transactions.filter((t) => t.type === 'merchant_deposit' && t.status === 'completed').reduce((s, t) => s + t.amount, 0);
@@ -142,25 +169,26 @@ export default function Dashboard({
   const hasDeposit = transactions.some(t => t.type === 'deposit' && t.status === 'completed' && t.direction === 'in');
   const isChatUnlocked = hasDeposit;
   // Проверяем страховой депозит для разблокировки функций
-  const hasInsuranceDeposit = insuranceDeposit >= 20000;
+  const hasInsuranceDeposit = insuranceDeposit >= 10000;
   // Проверяем наличие куратора (пока захардкожено, потом можно получать из API)
   const hasCurator = false; // Можно получать из user или stats
 
   // Процентные ставки
   const interestRates = [
-    { percent: 14, range: '100 - 999 ₽', minDeposit: 5000 },
-    { percent: 11, range: '1 000 - 4 999 ₽', minDeposit: 10000 },
-    { percent: 9, range: '5 000 - 19 999 ₽', minDeposit: 30000 },
-    { percent: 7.5, range: '20 000 - 300 000 ₽', minDeposit: 50000 },
+    { percent: 16,   range: 'Моб. коммерция · до 999 ₽',       minDeposit: 2000 },
+    { percent: 14,   range: 'СБП / С2С · 100 – 999 ₽',          minDeposit: 2000 },
+    { percent: 12,   range: 'СБП / С2С · 1 000 – 4 999 ₽',      minDeposit: 7000 },
+    { percent: 10.5, range: 'СБП / С2С · 5 000 – 19 999 ₽',     minDeposit: 15000 },
+    { percent: 9,    range: 'СБП / С2С · 20 000 – 300 000 ₽',   minDeposit: 30000 },
   ];
-  
+
   // Определяем доступную ставку на основе страхового депозита
   const getAvailableRate = (deposit) => {
-    if (deposit >= 50000) return 3; // 7.5%
-    if (deposit >= 30000) return 2; // 9%
-    if (deposit >= 10000) return 1; // 11%
-    if (deposit >= 5000) return 0; // 14%
-    return -1; // Нет доступной ставки
+    if (deposit >= 30000) return 4; // 9%
+    if (deposit >= 15000) return 3; // 10.5%
+    if (deposit >= 7000)  return 2; // 12%
+    if (deposit >= 2000)  return 1; // 14% / 16%
+    return -1;
   };
   
   const availableRateIndex = getAvailableRate(insuranceDeposit);
@@ -240,35 +268,49 @@ export default function Dashboard({
     </div>
   );
 
+  const greetingHour = new Date().getHours();
+  const greeting = greetingHour < 5 ? 'Доброй ночи' : greetingHour < 12 ? 'Доброе утро' : greetingHour < 18 ? 'Добрый день' : 'Добрый вечер';
+  const firstName = (user?.name || '').trim().split(/\s+/)[0];
+
+  const statCardStyle = {
+    background: 'var(--bg-card)',
+    borderRadius: '14px',
+    padding: '1.4rem 1.5rem',
+    border: '1px solid var(--border-light)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.85rem',
+    transition: 'border-color 0.2s, background 0.2s',
+  };
+  const eyebrowStyle = {
+    fontSize: '0.8rem',
+    color: 'var(--text-muted)',
+    fontWeight: 500,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+  };
+  const onCardEnter = (e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-card-hover)'; };
+  const onCardLeave = (e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.background = 'var(--bg-card)'; };
+
   return (
-    <div style={{ padding: '2rem', maxWidth: '1600px', margin: '0 auto' }}>
+    <div className="ep-page">
+      {/* Приветствие */}
+      <div style={{ marginBottom: '1.75rem' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)' }}>
+          {greeting}{firstName ? `, ${firstName}` : ''}
+        </h1>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+          Вот как идут дела с вашими платежами сегодня
+        </p>
+      </div>
+
       {/* Верхняя статистика - карточки в ряд */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem', marginBottom: '2rem' }}>
+      <div className="ep-dash-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
         {/* Сделки */}
-        <div
-          style={{
-            background: 'var(--bg-card)',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            border: '1px solid var(--border-light)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.borderColor = 'var(--border)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.borderColor = 'var(--border-light)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        >
+        <div style={statCardStyle} onMouseEnter={onCardEnter} onMouseLeave={onCardLeave}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <div style={eyebrowStyle}>
               Сделки
               <button onClick={() => setInfoModal(INFO_DEFINITIONS.deals)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}><InfoIcon size={14} /></button>
             </div>
@@ -280,30 +322,9 @@ export default function Dashboard({
         </div>
 
         {/* Выплаты */}
-        <div
-          style={{
-            background: 'var(--bg-card)',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            border: '1px solid var(--border-light)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.borderColor = 'var(--border)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.borderColor = 'var(--border-light)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        >
+        <div style={statCardStyle} onMouseEnter={onCardEnter} onMouseLeave={onCardLeave}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <div style={eyebrowStyle}>
               Выплаты
               <button onClick={() => setInfoModal(INFO_DEFINITIONS.payouts)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}><InfoIcon size={14} /></button>
             </div>
@@ -315,30 +336,9 @@ export default function Dashboard({
         </div>
 
         {/* Апелляции */}
-        <div
-          style={{
-            background: 'var(--bg-card)',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            border: '1px solid var(--border-light)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.borderColor = 'var(--border)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.borderColor = 'var(--border-light)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        >
+        <div style={statCardStyle} onMouseEnter={onCardEnter} onMouseLeave={onCardLeave}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <div style={eyebrowStyle}>
               Апелляции
               <button onClick={() => setInfoModal(INFO_DEFINITIONS.appeals)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}><InfoIcon size={14} /></button>
             </div>
@@ -351,102 +351,101 @@ export default function Dashboard({
 
       </div>
 
-      {/* Основной контент - график и боковая панель */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        {/* Карточка "Ваш доход" с графиком */}
+      {/* Основной контент - левая карточка и правая панель с графиком */}
+      <div className="ep-dash-grid-2" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', marginBottom: '1.5rem', alignItems: 'start' }}>
+        {/* Левая карточка: доходы без графика */}
         <div
           style={{
             background: 'var(--bg-card)',
             borderRadius: '16px',
-            padding: '1.5rem 2rem 2.5rem 2rem',
+            padding: '1.5rem 2rem 1.75rem 2rem',
             border: '1px solid var(--border-light)',
             display: 'flex',
             flexDirection: 'column',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '1.4rem', alignItems: 'flex-start' }}>
               <div>
                 <h2
                   style={{
-                    fontSize: '0.75rem',
+                    fontSize: '0.8rem',
                     color: 'var(--text-muted)',
-                    marginBottom: '0.5rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    marginBottom: '0.45rem',
+                    fontWeight: 500,
                   }}
                 >
                   Ваш доход{' '}
-                  <span style={{ 
-                    fontSize: '0.65rem', 
-                    fontWeight: 400, 
-                    textTransform: 'none',
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 400,
                     color: 'var(--text-light)',
                   }}>
-                    ({chartPeriod === 'day' ? 'ЗА СЕГОДНЯ' : chartPeriod === 'week' ? 'ЗА НЕДЕЛЮ' : chartPeriod === 'month' ? 'ЗА МЕСЯЦ' : 'ЗА ВСЕ ВРЕМЯ'})
+                    за сегодня
                   </span>
                 </h2>
                 <div
                   style={{
-                    fontSize: '2.5rem',
+                    fontSize: '1.7rem',
                     fontWeight: 700,
                     color: 'var(--text)',
-                    lineHeight: 1.2,
+                    lineHeight: 1.15,
+                    letterSpacing: '-0.02em',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {periodIncome.toLocaleString()} ₽
                 </div>
               </div>
-              <div style={{ 
-                paddingLeft: '2rem',
+              <div style={{
+                paddingLeft: '1.4rem',
                 borderLeft: '1px solid var(--border-light)',
               }}>
                 <h2
                   style={{
-                    fontSize: '0.75rem',
+                    fontSize: '0.8rem',
                     color: 'var(--text-muted)',
-                    marginBottom: '0.5rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    marginBottom: '0.45rem',
+                    fontWeight: 500,
                   }}
                 >
                   Страховой депозит
                 </h2>
                 <div
                   style={{
-                    fontSize: '2.5rem',
+                    fontSize: '1.7rem',
                     fontWeight: 700,
                     color: 'var(--text)',
-                    lineHeight: 1.2,
+                    lineHeight: 1.15,
+                    letterSpacing: '-0.02em',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {insuranceDeposit.toLocaleString()} ₽
                 </div>
               </div>
-              <div style={{ 
-                paddingLeft: '2rem',
+              <div style={{
+                paddingLeft: '1.4rem',
                 borderLeft: '1px solid var(--border-light)',
               }}>
                 <h2
                   style={{
-                    fontSize: '0.75rem',
+                    fontSize: '0.8rem',
                     color: 'var(--text-muted)',
-                    marginBottom: '0.5rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    marginBottom: '0.45rem',
+                    fontWeight: 500,
                   }}
                 >
                   Рабочий депозит
                 </h2>
                 <div
                   style={{
-                    fontSize: '2.5rem',
+                    fontSize: '1.7rem',
                     fontWeight: 700,
                     color: 'var(--text)',
-                    lineHeight: 1.2,
+                    lineHeight: 1.15,
+                    letterSpacing: '-0.02em',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {workingDeposit.toLocaleString()} ₽
@@ -464,222 +463,165 @@ export default function Dashboard({
                 borderRadius: '8px',
                 border: '1px solid var(--border-light)',
               }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text)', fontWeight: 600 }}>
-                  Курс USDT: {usdtRate ? `${usdtRate.toFixed(2)}₽` : '—'}
-                </span>
-              </div>
-              
-              {/* Выпадающий список для всех периодов */}
-              <div style={{ position: 'relative' }} data-period-select>
-                <button
-                  onClick={() => setShowPeriodSelect(!showPeriodSelect)}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: 'var(--bg-card-hover)',
-                    border: '1px solid var(--border-light)',
-                    borderRadius: '8px',
-                    color: 'var(--text)',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontWeight: 500,
-                  }}
-                >
-                  {chartPeriod === 'day' ? 'День' : chartPeriod === 'week' ? 'Неделя' : chartPeriod === 'month' ? 'Месяц' : 'Все время'}
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: showPeriodSelect ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                    <path d="M6 9L1 4H11L6 9Z" fill="currentColor" />
-                  </svg>
-                </button>
-                
-                {showPeriodSelect && (
-                  <div
+                <span style={{
+                  fontSize: '0.9rem',
+                  color: 'var(--text)',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  lineHeight: 1,
+                }}>
+                  <span>Курс</span>
+                  <img
+                    src="/usdt.webp"
+                    alt="USDT"
                     style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      marginTop: '0.5rem',
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: '8px',
-                      minWidth: '150px',
-                      zIndex: 1000,
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                      width: '22px',
+                      height: '22px',
+                      flexShrink: 0,
+                      display: 'block',
+                      objectFit: 'contain',
                     }}
-                  >
-                    {['day', 'week', 'month', 'all'].map((period) => (
-                      <button
-                        key={period}
-                        onClick={() => {
-                          setChartPeriod(period);
-                          setShowPeriodSelect(false);
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem 1rem',
-                          background: chartPeriod === period ? 'var(--bg-card-hover)' : 'transparent',
-                          border: 'none',
-                          borderRadius: '0',
-                          color: chartPeriod === period ? 'var(--text)' : 'var(--text-muted)',
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          transition: 'all 0.15s',
-                          fontWeight: chartPeriod === period ? 600 : 400,
-                        }}
-                        onMouseEnter={(e) => {
-                          if (chartPeriod !== period) {
-                            e.currentTarget.style.background = 'var(--bg-card-hover)';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (chartPeriod !== period) {
-                            e.currentTarget.style.background = 'transparent';
-                          }
-                        }}
-                      >
-                        {period === 'day' ? 'День' : period === 'week' ? 'Неделя' : period === 'month' ? 'Месяц' : 'Все время'}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  />
+                  <span>{usdtRate ? `${usdtRate.toFixed(2)}₽` : '—'}</span>
+                </span>
               </div>
             </div>
           </div>
 
-          {/* График */}
-          <div 
-            style={{ position: 'relative', width: '100%', marginTop: '0.5rem' }}
-          >
-          <div 
-            style={{ position: 'relative', height: `${chartHeight}px`, width: '100%', overflow: 'hidden' }}
-            onMouseMove={(e) => {
-              if (maxAmount === 0 || chartData.length === 0) return;
-              const rect = e.currentTarget.getBoundingClientRect();
-              const mouseX = ((e.clientX - rect.left) / rect.width) * 100;
-              const barCount = chartData.length;
-              const barWidth = 100 / barCount * 0.6;
-              const gap = 100 / barCount * 0.4;
-              let closestIndex = -1;
-              chartData.forEach((d, i) => {
-                const x = (i / barCount) * 100 + gap / 2;
-                if (mouseX >= x && mouseX <= x + barWidth) closestIndex = i;
-              });
-              if (closestIndex >= 0) {
-                const barH = (chartData[closestIndex].amount / maxAmount) * chartHeight;
-                setHoveredPoint(closestIndex);
-                setTooltipPosition({
-                  x: rect.left + (closestIndex / barCount + 0.5 / barCount) * rect.width,
-                  y: rect.top + chartHeight - barH - 10,
-                });
-              } else {
-                setHoveredPoint(null);
-              }
-            }}
-            onMouseLeave={() => setHoveredPoint(null)}
-          >
-            {maxAmount === 0 ? (
-              // Пустое состояние графика
-              <div style={{
-                height: '100%',
+          {/* Процентная ставка — ступенчатый список */}
+            <div style={{ marginTop: '1.5rem' }}>
+              <div style={{ 
+                fontSize: '0.9rem',
+                color: 'var(--text)',
+                fontWeight: 600,
+                marginBottom: '1rem',
+              }}>
+                Ставки трейдера
+              </div>
+              <div style={{ 
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--text-muted)',
-                gap: '0.5rem',
+                gap: '0.25rem',
+                background: 'var(--bg-card-hover)',
+                borderRadius: '12px',
+                padding: '0.5rem',
+                border: '1px solid var(--border-light)',
               }}>
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.3 }}>
-                  <path
-                    d="M3 3V21H21"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M7 16L12 11L16 15L21 10"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>Нет данных за выбранный период</div>
-              </div>
-            ) : (
-              <svg width="100%" height={chartHeight} viewBox={`0 0 100 ${chartHeight}`} preserveAspectRatio="none" style={{ overflow: 'visible' }}>
-                <defs>
-                  <linearGradient id="chartBarGradient" x1="0%" y1="100%" x2="0%" y2="0%">
-                    <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="var(--accent)" stopOpacity="1" />
-                  </linearGradient>
-                </defs>
-                {/* Сетка */}
-                {[0.25, 0.5, 0.75].map((y) => (
-                  <line
-                    key={y}
-                    x1={0}
-                    y1={y * chartHeight}
-                    x2={100}
-                    y2={y * chartHeight}
-                    stroke="var(--border)"
-                    strokeWidth="0.5"
-                    opacity="0.15"
-                    strokeDasharray="2 2"
-                  />
-                ))}
-                {/* Вертикальные столбцы — единая толщина, выровнены по подписям дат (space-between) */}
-                {chartData.map((d, i) => {
-                  const barCount = chartData.length;
-                  const fixedBarWidth = 100 / 30 * 0.6;
-                  const barWidth = fixedBarWidth;
-                  const centerX = barCount > 1 ? (i / (barCount - 1)) * 100 : 50;
-                  const x = Math.max(0, Math.min(100 - barWidth, centerX - barWidth / 2));
-                  const barH = maxAmount > 0 ? (d.amount / maxAmount) * chartHeight : 0;
-                  const y = chartHeight - barH;
-                  const handleMouseEnter = (e) => {
-                    setHoveredPoint(i);
-                    const svgRect = e.currentTarget.ownerSVGElement.getBoundingClientRect();
-                    const barCenterX = svgRect.left + (x / 100 + barWidth / 200) * svgRect.width;
-                    const barTopY = svgRect.top + (y / chartHeight) * svgRect.height;
-                    setTooltipPosition({
-                      x: barCenterX,
-                      y: barTopY - 8,
-                    });
-                  };
+                {interestRates.map((rate, idx) => {
+                  const isAvailable = availableRateIndex >= idx;
+                  const isCurrent = idx === availableRateIndex;
                   return (
-                    <g key={i}>
-                      <rect
-                        x={x}
-                        y={y}
-                        width={barWidth}
-                        height={barH}
-                        fill="url(#chartBarGradient)"
-                        rx="4"
-                        style={{ cursor: 'default', transition: 'opacity 0.2s' }}
-                        onMouseEnter={handleMouseEnter}
-                        onMouseLeave={() => setHoveredPoint(null)}
-                      />
-                      <rect
-                        x={x}
-                        y={0}
-                        width={barWidth}
-                        height={chartHeight}
-                        fill="transparent"
-                        style={{ cursor: 'default' }}
-                        onMouseEnter={handleMouseEnter}
-                        onMouseLeave={() => setHoveredPoint(null)}
-                      />
-                    </g>
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        padding: '0.7rem 0.9rem',
+                        borderRadius: '10px',
+                        background: isCurrent ? 'var(--accent-soft)' : 'transparent',
+                        border: isCurrent ? '1px solid var(--accent)' : '1px solid transparent',
+                        opacity: isAvailable ? 1 : 0.5,
+                        transition: 'background 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (isAvailable && !isCurrent) e.currentTarget.style.background = 'var(--bg-card)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isCurrent) e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <span style={{
+                        fontSize: '1.1rem',
+                        fontWeight: 700,
+                        color: isCurrent ? 'var(--accent)' : 'var(--text)',
+                        minWidth: '3rem',
+                        letterSpacing: '-0.01em',
+                      }}>
+                        {rate.percent}%
+                      </span>
+                      <span style={{
+                        fontSize: '0.85rem',
+                        color: 'var(--text-muted)',
+                        fontWeight: 500,
+                        flex: 1,
+                      }}>
+                        {rate.range}
+                      </span>
+                      {isCurrent ? (
+                        <span style={{
+                          fontSize: '0.7rem',
+                          color: 'var(--accent)',
+                          fontWeight: 600,
+                          padding: '0.2rem 0.6rem',
+                          background: 'var(--accent-soft)',
+                          borderRadius: '999px',
+                        }}>
+                          Ваша ставка
+                        </span>
+                      ) : !isAvailable ? (
+                        <LockIcon size={14} color="var(--text-light)" />
+                      ) : null}
+                    </div>
                   );
                 })}
-              </svg>
-            )}
+              </div>
+            </div>
           </div>
-            
-            {/* Tooltip */}
+
+        {/* Правая колонка: график + боковая панель */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+          {/* График дохода — справа, горизонтальные полоски */}
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              borderRadius: '16px',
+              padding: '1.25rem 1.5rem',
+              border: '1px solid var(--border-light)',
+            }}
+          >
+            <h3 style={{ fontSize: '0.9rem', color: 'var(--text)', fontWeight: 600, margin: '0 0 1rem' }}>
+              Доход по дням
+            </h3>
+            {maxAmount === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Нет данных</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {chartData.slice(-(chartData.length <= 7 ? 7 : 10)).reverse().map((d, i) => {
+                  const dataIdx = chartData.length - 1 - i;
+                  const pct = (d.earned || 0) > 0 && maxEarned > 0 ? ((d.earned || 0) / maxEarned) * 100 : 0;
+                  return (
+                    <div
+                      key={i}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+                      onMouseEnter={(e) => {
+                        setHoveredPoint(dataIdx);
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top - 4 });
+                      }}
+                      onMouseLeave={() => setHoveredPoint(null)}
+                      data-chart-row={i}
+                    >
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', minWidth: '42px', fontWeight: 500 }}>{d.time}</span>
+                      <div style={{ flex: 1, height: '20px', background: 'var(--bg-card-hover)', borderRadius: '6px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: `${pct}%`,
+                            height: '100%',
+                            background: 'var(--accent)',
+                            borderRadius: '6px',
+                            transition: 'width 0.3s ease',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {hoveredPoint !== null && chartData[hoveredPoint] && (
               <div
                 style={{
@@ -690,152 +632,20 @@ export default function Dashboard({
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-light)',
                   borderRadius: '8px',
-                  padding: '1rem',
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
+                  padding: '0.75rem 1rem',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
                   zIndex: 10000,
-                  minWidth: '180px',
+                  minWidth: '200px',
                   pointerEvents: 'none',
                 }}
               >
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 500 }}>
-                  {chartData[hoveredPoint].date || chartData[hoveredPoint].time}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Принято:</span>
-                    <span style={{ color: 'var(--text)' }}>{(chartData[hoveredPoint].received || 0).toLocaleString()} ₽</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Выплачено:</span>
-                    <span style={{ color: 'var(--text)' }}>{(chartData[hoveredPoint].paid || 0).toLocaleString()} ₽</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Заработано:</span>
-                    <span style={{ color: chartData[hoveredPoint].earned >= 0 ? 'var(--success)' : 'var(--error)' }}>
-                      {(chartData[hoveredPoint].earned || 0).toLocaleString()} ₽
-                    </span>
-                  </div>
-                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 500 }}>{chartData[hoveredPoint].date || chartData[hoveredPoint].time}</div>
+                <div style={{ fontSize: '0.85rem', marginBottom: '0.25rem' }}>Принято: <span style={{ color: 'var(--text)', fontWeight: 600 }}>{(chartData[hoveredPoint].received || 0).toLocaleString()} ₽</span></div>
+                <div style={{ fontSize: '0.85rem', marginBottom: '0.25rem' }}>Выводов: <span style={{ color: 'var(--text)', fontWeight: 600 }}>{(chartData[hoveredPoint].paid || 0).toLocaleString()} ₽</span></div>
+                <div style={{ fontSize: '0.85rem' }}>Заработано: <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{(chartData[hoveredPoint].earned || 0).toLocaleString()} ₽</span></div>
               </div>
             )}
-            {/* Подписи осей */}
-            {maxAmount > 0 && (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginTop: '0.5rem',
-                  paddingTop: '0.5rem',
-                  fontSize: '0.7rem',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                {chartData.map((d, i) => {
-                  // Показываем не все даты, а только каждую N-ю, чтобы избежать повторений
-                  const step = Math.max(1, Math.floor(chartData.length / 7)); // Максимум 7 подписей
-                  const shouldShow = i === 0 || i === chartData.length - 1 || i % step === 0;
-                  
-                  // Проверяем, не повторяется ли дата с предыдущей
-                  const prevTime = i > 0 ? chartData[i - 1].time : null;
-                  const isDuplicate = d.time === prevTime;
-                  
-                  if (!shouldShow || isDuplicate) {
-                    return <span key={i} style={{ visibility: 'hidden' }}>{d.time}</span>;
-                  }
-                  
-                  return <span key={i} style={{ fontWeight: 500 }}>{d.time}</span>;
-                })}
-              </div>
-            )}
-
-            {/* Блок под графиком: Процентная ставка */}
-            <div style={{ 
-              marginTop: '1.5rem',
-            }}>
-              <div style={{ 
-                fontSize: '0.7rem', 
-                color: 'var(--text-muted)', 
-                fontWeight: 600, 
-                textTransform: 'uppercase', 
-                letterSpacing: '0.05em',
-                marginBottom: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-              }}>
-                Процентная ставка
-                <button onClick={() => setInfoModal(INFO_DEFINITIONS.rate)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}><InfoIcon size={14} /></button>
-              </div>
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(4, 1fr)', 
-                gap: '1rem',
-                width: '100%',
-              }}>
-                {interestRates.map((rate, idx) => {
-                  const isAvailable = availableRateIndex >= idx;
-                  return (
-                    <div
-                      key={idx}
-                      style={{
-                        background: 'var(--bg-card-hover)',
-                        borderRadius: '10px',
-                        padding: '1rem 1.25rem',
-                        border: isAvailable ? '1px solid var(--success)' : '1px solid var(--border-light)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.5rem',
-                        transition: 'all 0.2s',
-                        width: '100%',
-                        position: 'relative',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = isAvailable ? 'var(--success)' : 'var(--border)';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = isAvailable ? 'var(--success)' : 'var(--border-light)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }}
-                    >
-                      <div style={{ 
-                        fontSize: '1.5rem', 
-                        fontWeight: 700,
-                        color: isAvailable ? 'var(--success)' : 'var(--text)',
-                        lineHeight: 1,
-                      }}>
-                        {rate.percent}%
-                      </div>
-                      <div style={{ 
-                        fontSize: '0.75rem',
-                        color: 'var(--text-muted)',
-                        fontWeight: 500,
-                      }}>
-                        {rate.range}
-                      </div>
-                      {isAvailable && idx === availableRateIndex && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '0.5rem',
-                          right: '0.5rem',
-                          fontSize: '0.65rem',
-                          color: 'var(--success)',
-                          fontWeight: 600,
-                          textTransform: 'uppercase',
-                        }}>
-                          Доступно
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
           </div>
-        </div>
-
-        {/* Боковая панель */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
           {/* Конверсия по устройствам */}
           <div
@@ -848,12 +658,10 @@ export default function Dashboard({
           >
             <h3
               style={{
-                fontSize: '0.75rem',
-                color: 'var(--text-muted)',
                 marginBottom: '1.25rem',
                 fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                fontSize: '0.9rem',
+                color: 'var(--text)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.25rem',
@@ -864,26 +672,101 @@ export default function Dashboard({
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {conversionData.length > 0 ? (
-                conversionData.map((item, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      fontSize: '0.875rem',
-                      padding: '0.75rem',
-                      background: 'var(--bg-card-hover)',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border-light)',
-                    }}
-                  >
-                    <span style={{ color: 'var(--text)' }}>
-                      {item.name} {item.bank}
-                    </span>
-                    <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{item.conversion}%</span>
-                  </div>
-                ))
+                <>
+                  {conversionData.map((item, idx) => {
+                    const isOffline = item.device?.online === false;
+                    return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '0.875rem',
+                        padding: '0.75rem',
+                        background: 'var(--bg-card-hover)',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border-light)',
+                      }}
+                    >
+<div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <span style={{ color: 'var(--text)' }}>
+                        {item.name}
+                        {item.limit != null && (
+                          <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {item.used?.toLocaleString()} / {item.limit?.toLocaleString()} ₽ ({item.pct}%)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {item.device && onDeviceToggleOnline && (
+                        <button
+                          onClick={() => onDeviceToggleOnline(item.device.id, !(item.device.online !== false))}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            padding: '0.25rem 0.4rem',
+                            background: 'transparent',
+                            border: 'none',
+                            borderRadius: '8px',
+                            color: isOffline ? 'var(--error)' : 'var(--text-muted)',
+                            fontSize: '0.75rem',
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <span style={{
+                            width: '24px',
+                            height: '14px',
+                            background: isOffline ? 'var(--error)' : 'var(--accent)',
+                            borderRadius: '999px',
+                            position: 'relative',
+                            flexShrink: 0,
+                          }}>
+                            <span style={{
+                              position: 'absolute',
+                              top: '1px',
+                              left: isOffline ? '1px' : '11px',
+                              width: '12px',
+                              height: '12px',
+                              background: '#fff',
+                              borderRadius: '50%',
+                              transition: 'left 0.2s',
+                            }} />
+                          </span>
+                          {isOffline ? 'Офлайн' : 'Онлайн'}
+                        </button>
+                      )}
+                      <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{item.conversion}%</span>
+                    </div>
+                    </div>
+                  );})}
+                  {merchantDevices.length > 0 && hasInsuranceDeposit && (
+                    <button
+                      onClick={() => { sessionStorage.setItem('openDevicesAddModal', '1'); onTabChange('devices'); }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        padding: '0.6rem',
+                        width: '100%',
+                        background: 'transparent',
+                        border: '1px dashed var(--border-light)',
+                        borderRadius: '8px',
+                        color: 'var(--text-muted)',
+                        fontSize: '0.8rem',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <PlusIcon size={14} color="var(--text-muted)" />
+                      Добавить устройство
+                    </button>
+                  )}
+                </>
               ) : (
                 <div style={{ position: 'relative', width: '100%' }}>
                   {!hasInsuranceDeposit && (
@@ -910,6 +793,7 @@ export default function Dashboard({
                     />
                   )}
                 <button
+                  onClick={() => { if (hasInsuranceDeposit) { sessionStorage.setItem('openDevicesAddModal', '1'); onTabChange('devices'); } }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -932,7 +816,6 @@ export default function Dashboard({
                   onMouseEnter={(e) => {
                     if (hasInsuranceDeposit) {
                       e.currentTarget.style.borderColor = 'var(--border)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
                     } else {
                       const rect = e.currentTarget.getBoundingClientRect();
                       setLockTooltip({ text: 'Чтобы добавить устройство, у вас должен быть страховой депозит от 20 000 ₽', x: rect.left + rect.width / 2, y: rect.top });
@@ -947,7 +830,6 @@ export default function Dashboard({
                   onMouseLeave={(e) => {
                     if (hasInsuranceDeposit) {
                       e.currentTarget.style.borderColor = 'var(--border-light)';
-                      e.currentTarget.style.transform = 'translateY(0)';
                     }
                     setLockTooltip(null);
                   }}
@@ -973,41 +855,33 @@ export default function Dashboard({
           >
             <h3
               style={{
-                fontSize: '0.75rem',
-                color: 'var(--text-muted)',
-                marginBottom: '1.25rem',
+                marginBottom: '1rem',
                 fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                fontSize: '0.9rem',
+                color: 'var(--text)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
               }}
             >
               Рабочий чат
-              <TelegramIcon size={16} color="var(--text-muted)" />
+              <TelegramIcon size={24} />
               <button onClick={() => setInfoModal(INFO_DEFINITIONS.chat)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)', marginLeft: '0.2rem' }}><InfoIcon size={14} /></button>
             </h3>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
                 gap: '0.75rem',
-                padding: '1.5rem',
-                background: 'var(--bg-card-hover)',
-                borderRadius: '12px',
-                border: '1px solid var(--border-light)',
                 cursor: isChatUnlocked ? 'pointer' : 'default',
-                transition: 'all 0.2s',
+                transition: 'opacity 0.2s',
                 filter: isChatUnlocked ? 'none' : 'blur(2px)',
                 opacity: isChatUnlocked ? 1 : 0.6,
                 position: 'relative',
               }}
               onMouseEnter={(e) => {
                 if (isChatUnlocked) {
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.opacity = '0.85';
                 } else {
                   const rect = e.currentTarget.getBoundingClientRect();
                   setLockTooltip({ text: 'Вам необходимо выполнить одно пополнение для разблокировки', x: rect.left + rect.width / 2, y: rect.top });
@@ -1021,13 +895,12 @@ export default function Dashboard({
               }}
               onMouseLeave={(e) => {
                 if (isChatUnlocked) {
-                  e.currentTarget.style.borderColor = 'var(--border-light)';
-                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.opacity = '1';
                 }
                 setLockTooltip(null);
               }}
             >
-              <TelegramIcon size={24} color="var(--accent)" />
+              <TelegramIcon size={36} />
               <span style={{ color: 'var(--text)', fontWeight: 600, fontSize: '0.95rem' }}>
                 Открыть чат
               </span>
@@ -1046,12 +919,10 @@ export default function Dashboard({
           >
             <h3
               style={{
-                fontSize: '0.75rem',
-                color: 'var(--text-muted)',
                 marginBottom: '1.25rem',
                 fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                fontSize: '0.9rem',
+                color: 'var(--text)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.4rem',

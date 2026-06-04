@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { API } from '../api';
 import TelegramIcon from './TelegramIcon';
 
-export default function Auth({ onLogin }) {
+
+export default function Auth({ onLogin, referralCode: initialReferralCode }) {
   const [isLogin, setIsLogin] = useState(true);
+  const [referralCode] = useState(() => initialReferralCode || '');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -29,6 +31,7 @@ export default function Auth({ onLogin }) {
             name: formData.name,
             telegram: formData.telegram,
             role: formData.role,
+            ...(referralCode && { referralCode }),
           };
 
       const res = await fetch(`${API}${endpoint}`, {
@@ -40,8 +43,8 @@ export default function Auth({ onLogin }) {
       const data = await res.json();
 
       if (res.ok) {
-        localStorage.setItem('shipPayToken', data.token);
-        localStorage.setItem('shipPayUser', JSON.stringify(data.user));
+        localStorage.setItem('enterPayToken', data.token);
+        localStorage.setItem('enterPayUser', JSON.stringify(data.user));
         onLogin(data.user, data.token);
       } else {
         setError(data.error || 'Ошибка авторизации');
@@ -54,51 +57,51 @@ export default function Auth({ onLogin }) {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg)',
-        padding: '2rem',
-      }}
-    >
-      <div
-        style={{
-          background: 'var(--bg-card)',
-          borderRadius: '16px',
-          border: '1px solid var(--border-light)',
-          padding: '3rem',
-          width: '100%',
-          maxWidth: '480px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+    <div className="ep-auth-page">
+      <div className="ep-auth-card">
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.75rem' }}>
+            <div
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '9px',
+                background: 'var(--accent)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: '1.2rem',
+                fontWeight: 800,
+                letterSpacing: '-0.04em',
+              }}
+            >
+              E
+            </div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>
+              Enter <span style={{ color: 'var(--accent)' }}>Pay</span>
+            </div>
+          </div>
           <h1
             style={{
-              fontSize: '2.5rem',
+              fontSize: '1.5rem',
               fontWeight: 700,
               color: 'var(--text)',
               margin: 0,
-              marginBottom: '0.5rem',
+              marginBottom: '0.4rem',
               letterSpacing: '-0.02em',
             }}
           >
-            Ship Pay
+            {isLogin ? 'С возвращением' : 'Создание аккаунта'}
           </h1>
           <p
             style={{
               color: 'var(--text-muted)',
-              fontSize: '0.875rem',
-              fontWeight: 500,
+              fontSize: '0.9rem',
               margin: 0,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
             }}
           >
-            High-Risk платёжная система
+            {isLogin ? 'Войдите, чтобы продолжить работу' : 'Заполните данные, чтобы начать'}
           </p>
         </div>
 
@@ -230,7 +233,7 @@ export default function Auth({ onLogin }) {
                     fontWeight: 500,
                   }}
                 >
-                  <TelegramIcon size={16} color="var(--text-muted)" />
+                  <TelegramIcon size={24} />
                   Telegram
                 </label>
                 <input
@@ -281,24 +284,30 @@ export default function Auth({ onLogin }) {
                 >
                   {[
                     { value: 'merchant', label: 'Мерчант' },
-                    { value: 'shop', label: 'Магазин' },
+                    { value: 'shop', label: 'Магазин', disabled: true },
                   ].map((option) => (
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => setFormData({ ...formData, role: option.value })}
+                      disabled={option.disabled}
+                      onClick={() => {
+                        if (!option.disabled) {
+                          setFormData({ ...formData, role: option.value });
+                        }
+                      }}
                       style={{
                         flex: 1,
                         padding: '0.875rem 1rem',
                         background: formData.role === option.value ? 'var(--bg-card)' : 'var(--bg-card-hover)',
                         border: formData.role === option.value ? '1px solid var(--accent)' : '1px solid var(--border-light)',
                         borderRadius: '8px',
-                        color: formData.role === option.value ? 'var(--text)' : 'var(--text-muted)',
+                        color: option.disabled ? 'var(--text-light)' : formData.role === option.value ? 'var(--text)' : 'var(--text-muted)',
                         fontWeight: formData.role === option.value ? 600 : 400,
-                        cursor: 'pointer',
+                        cursor: option.disabled ? 'not-allowed' : 'pointer',
                         fontSize: '0.95rem',
                         transition: 'all 0.15s',
                         boxShadow: formData.role === option.value ? '0 1px 3px rgba(0, 0, 0, 0.05)' : 'none',
+                        opacity: option.disabled ? 0.55 : 1,
                       }}
                     >
                       {option.label}
@@ -396,7 +405,7 @@ export default function Auth({ onLogin }) {
               width: '100%',
               padding: '1rem',
               background: loading ? 'var(--bg-card-hover)' : 'var(--accent)',
-              color: loading ? 'var(--text-muted)' : 'var(--bg-card)',
+              color: loading ? 'var(--text-muted)' : '#fff',
               border: 'none',
               borderRadius: '8px',
               fontWeight: 600,

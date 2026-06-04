@@ -1,12 +1,5 @@
 import { useState, useEffect } from 'react';
 import {
-  HomeIcon,
-  DealsIcon,
-  AppealsIcon,
-  PayoutsIcon,
-  HistoryIcon,
-  DevicesIcon,
-  PayIcon,
   RefIcon,
   SettingsIcon,
   LogoutIcon,
@@ -15,16 +8,15 @@ import {
   UserAvatarIcon,
 } from './Icons';
 
-export default function TopNav({ activeTab, onTabChange, onLogout, user, balance, onWalletClick, theme, onThemeToggle }) {
+export default function TopNav({ activeTab, onTabChange, onLogout, user, balance, onWalletClick, onRefClick, theme, onThemeToggle, merchantDevices = [] }) {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const menuItems = [
-    { id: 'dashboard', label: 'Главная', icon: HomeIcon },
-    { id: 'deals', label: 'Сделки', icon: DealsIcon },
-    { id: 'appeals', label: 'Апелляции', icon: AppealsIcon },
-    { id: 'payouts', label: 'Выплаты', icon: PayoutsIcon },
-    { id: 'history', label: 'История', icon: HistoryIcon },
-    { id: 'devices', label: 'Устройства', icon: DevicesIcon },
-    { id: 'pay', label: 'Pay', icon: PayIcon },
+    { id: 'dashboard', label: 'Главная', icon: null },
+    { id: 'deals', label: 'Сделки', icon: null },
+    { id: 'appeals', label: 'Апелляции', icon: null },
+    { id: 'payouts', label: 'Выплаты', icon: null },
+    { id: 'history', label: 'История', icon: null },
+    { id: 'devices', label: 'Устройства', icon: null },
   ];
 
   // Закрываем dropdown при клике вне его
@@ -39,49 +31,42 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
   }, [showUserDropdown]);
 
   return (
-    <header
-      style={{
-        background: 'var(--bg-nav)',
-        borderBottom: '1px solid var(--border-light)',
-        padding: '0 2rem',
-        height: '72px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 1000,
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-      }}
-    >
-      {/* Логотип и навигация */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '3rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div
-            style={{
-              fontSize: '1.25rem',
-              fontWeight: 700,
-              color: 'var(--text)',
-              letterSpacing: '-0.02em',
-            }}
+    <header className="ep-topnav">
+      <div className="ep-topnav__left">
+        <div className="ep-topnav__brand-row">
+        <div className="ep-topnav__brand">
+          <button
+            type="button"
+            className="ep-topnav__brand-link"
+            onClick={() => onTabChange('dashboard')}
+            aria-label="На главную"
           >
-            Ship Pay
-          </div>
-          <div
-            style={{
-              fontSize: '0.7rem',
-              color: 'var(--error)',
-              fontWeight: 500,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
-            High-Risk
-          </div>
+            <div
+              style={{
+                width: '26px',
+                height: '26px',
+                borderRadius: '7px',
+                background: 'var(--accent)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: '0.95rem',
+                fontWeight: 800,
+                letterSpacing: '-0.04em',
+              }}
+            >
+              E
+            </div>
+            <div className="ep-topnav__brand-text">
+              Enter <span style={{ color: 'var(--accent)' }}>Pay</span>
+            </div>
+          </button>
+          <span className="ep-topnav__badge">High-risk</span>
+        </div>
         </div>
 
-        {/* Навигация */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <nav className="ep-topnav__menu">
           {menuItems.map((item) => {
             const IconComponent = item.icon;
             return (
@@ -116,7 +101,7 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
                   }
                 }}
               >
-                <IconComponent size={18} color="currentColor" />
+                {IconComponent && <IconComponent size={18} color="currentColor" />}
                 <span>{item.label}</span>
                 {activeTab === item.id && (
                   <div
@@ -127,7 +112,7 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
                       right: 0,
                       width: '100%',
                       height: '2px',
-                      background: 'var(--text)',
+                      background: 'var(--accent)',
                       borderRadius: '1px',
                     }}
                   />
@@ -138,8 +123,7 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
         </nav>
       </div>
 
-      {/* Правая часть: баланс, тема и пользователь */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div className="ep-topnav__right">
         {/* Переключатель темы */}
         <button
           onClick={onThemeToggle}
@@ -206,13 +190,19 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
             style={{
               padding: '0',
               background: 'transparent',
-              border: 'none',
+              border: (() => {
+                const hasDevices = merchantDevices.length > 0;
+                const allOffline = hasDevices && merchantDevices.every(d => d.online === false);
+                const hasAnyOnline = hasDevices && merchantDevices.some(d => d.online !== false);
+                return allOffline ? '2px solid var(--error)' : hasAnyOnline ? '2px solid var(--positive)' : 'none';
+              })(),
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: '50%',
               transition: 'all 0.15s',
+              boxSizing: 'border-box',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.05)';
@@ -299,7 +289,7 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
                 <button
                   onClick={() => {
                     setShowUserDropdown(false);
-                    onTabChange('ref');
+                    onRefClick?.();
                   }}
                   style={{
                     width: '100%',

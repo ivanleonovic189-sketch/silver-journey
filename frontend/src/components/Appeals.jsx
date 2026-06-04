@@ -269,7 +269,7 @@ export default function Appeals({
                         style={{
                           padding: '0.5rem 1rem',
                           background: 'var(--green)',
-                          color: '#000',
+                          color: '#fff',
                           border: 'none',
                           borderRadius: '8px',
                           fontSize: '0.85rem',

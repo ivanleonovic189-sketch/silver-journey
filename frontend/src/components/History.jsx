@@ -63,7 +63,7 @@ export default function History({ payoutRequests, transactions = [], getAuthHead
   const getStatusStyle = (status) => {
     switch (status) {
       case 'completed':
-        return { bg: 'rgba(0, 255, 136, 0.15)', color: 'var(--green-bright)' };
+        return { bg: 'var(--positive-soft)', color: 'var(--positive)' };
       case 'in_progress':
         return { bg: 'rgba(255, 184, 77, 0.15)', color: 'var(--yellow)' };
       case 'cancelled':
@@ -97,7 +97,7 @@ export default function History({ payoutRequests, transactions = [], getAuthHead
   });
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+    <div className="ep-page" style={{ maxWidth: '1200px' }}>
       <h2 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text)', marginBottom: '1.5rem' }}>
         История
       </h2>
@@ -128,22 +128,7 @@ export default function History({ payoutRequests, transactions = [], getAuthHead
             border: '1px solid var(--border-light)',
           }}
         >
-          <div style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Нет записей</div>
-          <button
-            onClick={() => onTabChange?.('payouts')}
-            style={{
-              marginTop: '1rem',
-              padding: '0.75rem 1.5rem',
-              background: 'var(--green)',
-              color: '#000',
-              border: 'none',
-              borderRadius: '10px',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Перейти к выплатам
-          </button>
+          <div style={{ fontSize: '1rem' }}>Нет пополнений</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -200,7 +185,7 @@ export default function History({ payoutRequests, transactions = [], getAuthHead
                       style={{
                         padding: '0.5rem 1rem',
                         background: 'var(--green)',
-                        color: '#000',
+                        color: '#fff',
                         border: 'none',
                         borderRadius: '8px',
                         fontWeight: 600,

@@ -6,7 +6,25 @@ const { initDb, getDb, saveDb, nextId } = require('./db');
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:5177', 'http://localhost:5178', 'http://localhost:5179'] }));
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    const isNetlify = /^https:\/\/[\w-]+\.netlify\.app$/.test(origin);
+    const extraOrigins = (process.env.ALLOWED_ORIGINS || '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
+    if (isLocal || isNetlify || extraOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
+}));
 app.use(express.json());
 
 initDb();
@@ -39,7 +57,7 @@ function requireAuth(req, res, next) {
 // Регистрация
 app.post('/api/auth/register', (req, res) => {
   const db = getDb();
-  const { email, password, name, telegram, role } = req.body || {};
+  const { email, password, name, telegram, role, referralCode } = req.body || {};
   
   if (!email || !password || !name || !telegram || !role) {
     return res.status(400).json({ error: 'Укажите email, password, name, telegram и role' });
@@ -55,6 +73,12 @@ app.post('/api/auth/register', (req, res) => {
   if (db.users.find(u => u.email === email)) {
     return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
   }
+
+  let referrerId = null;
+  if (referralCode && String(referralCode).trim()) {
+    const referrer = db.users.find(u => u.referralCode && u.referralCode.toUpperCase() === String(referralCode).trim().toUpperCase());
+    if (referrer && referrer.id) referrerId = referrer.id;
+  }
   
   const user = {
     id: nextId(db.users),
@@ -62,11 +86,30 @@ app.post('/api/auth/register', (req, res) => {
     password: crypto.createHash('sha256').update(String(password)).digest('hex'),
     name: String(name),
     telegram: String(telegram).trim(),
-    role: String(role), // 'merchant' или 'shop'
+    role: String(role),
+    referralCode: null,
+    referrerId: referrerId,
     createdAt: new Date().toISOString(),
   };
   
   db.users.push(user);
+  
+  if (role === 'merchant') {
+    initMerchants(db);
+    const existingMerchant = db.merchants.find(m => String(m.userId) === String(user.id));
+    if (!existingMerchant) {
+      db.merchants.push({
+        id: nextId(db.merchants),
+        name: `${name} (мерчант)`,
+        apiKey: 'merchant_' + crypto.randomBytes(16).toString('hex'),
+        balance: 0,
+        enabled: true,
+        userId: user.id,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+  
   saveDb(db);
   
   // Создаем сессию
@@ -128,8 +171,48 @@ app.post('/api/auth/login', (req, res) => {
 
 // Получить текущего пользователя
 app.get('/api/auth/me', requireAuth, (req, res) => {
-  const { password: _, ...userPublic } = req.user;
+  const db = getDb();
+  const u = db.users.find(us => us.id === req.user.id) || req.user;
+  const { password: _, ...userPublic } = u;
   res.json({ user: userPublic });
+});
+
+// Реферальная программа
+app.get('/api/referral', requireAuth, (req, res) => {
+  const db = getDb();
+  const user = req.user;
+  const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const referralLink = user.referralCode ? `${baseUrl}#ref=${user.referralCode}` : null;
+  const referrals = db.users.filter(u => u.referrerId === user.id);
+  const referralRewards = (db.transactions || []).filter(t => t.type === 'referral_reward' && String(t.referrerId) === String(user.id));
+  const referralEarnings = referralRewards.reduce((sum, t) => sum + (t.amount || 0), 0);
+  const referredVolume = referralRewards.reduce((sum, t) => sum + (t.baseAmount || t.amount || 0), 0);
+  res.json({
+    referralLink,
+    referralCode: user.referralCode,
+    referralsCount: referrals.length,
+    referralEarnings,
+    referredVolume,
+  });
+});
+
+// Установить свой реферальный код (пользователь создаёт сам)
+app.patch('/api/referral/set-code', requireAuth, (req, res) => {
+  const db = getDb();
+  const { code } = req.body || {};
+  const raw = String(code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (raw.length < 3 || raw.length > 20) {
+    return res.status(400).json({ error: 'Код должен быть от 3 до 20 символов (лат. буквы и цифры)' });
+  }
+  const existing = db.users.find(u => u.referralCode && u.referralCode.toUpperCase() === raw && u.id !== req.user.id);
+  if (existing) {
+    return res.status(400).json({ error: 'Этот код уже занят' });
+  }
+  const u = db.users.find(us => us.id === req.user.id);
+  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
+  u.referralCode = raw;
+  saveDb(db);
+  res.json({ referralCode: raw });
 });
 
 // Выход
@@ -143,6 +226,96 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
   }
   
   res.json({ success: true });
+});
+
+// ========== НАСТРОЙКИ (паблишер / казино) ==========
+
+const DEFAULT_PUBLISHER_SETTINGS = {
+  casinoSiteUrl: '',
+  landingPageUrl: '',
+  defaultSubId: '',
+  trackingSource: '',
+  trafficGeo: 'RU,CIS',
+  postbackUrl: '',
+  postbackDeposit: true,
+  postbackFirstDeposit: true,
+  postbackWithdraw: false,
+  postbackChargeback: true,
+  postbackSecret: '',
+  notifyTelegramDeposits: true,
+  notifyTelegramPayouts: true,
+  notifyTelegramAppeals: true,
+  notifyMinAmount: 1000,
+  apiIpWhitelist: '',
+  autoAcceptPayouts: false,
+  holdPeriodHours: 0,
+  revshareDisplay: true,
+};
+
+app.get('/api/settings', requireAuth, (req, res) => {
+  const db = getDb();
+  initMerchants(db);
+  const u = db.users.find(us => us.id === req.user.id);
+  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
+  const merchant = (db.merchants || []).find(m => String(m.userId) === String(u.id));
+  const settings = { ...DEFAULT_PUBLISHER_SETTINGS, ...(u.settings || {}) };
+  const { password: _, ...userPublic } = u;
+  res.json({
+    settings,
+    profile: {
+      id: userPublic.id,
+      name: userPublic.name,
+      email: userPublic.email,
+      telegram: userPublic.telegram,
+      role: userPublic.role,
+    },
+    integration: merchant
+      ? { merchantId: merchant.id, apiKey: merchant.apiKey, enabled: merchant.enabled !== false }
+      : null,
+  });
+});
+
+app.patch('/api/settings', requireAuth, (req, res) => {
+  const db = getDb();
+  const u = db.users.find(us => us.id === req.user.id);
+  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
+
+  const { settings, profile } = req.body || {};
+
+  if (profile && typeof profile === 'object') {
+    if (profile.name != null) u.name = String(profile.name).trim().slice(0, 80);
+    if (profile.telegram != null) u.telegram = String(profile.telegram).trim().slice(0, 64);
+  }
+
+  if (settings && typeof settings === 'object') {
+    const merged = { ...DEFAULT_PUBLISHER_SETTINGS, ...(u.settings || {}) };
+    const allowed = Object.keys(DEFAULT_PUBLISHER_SETTINGS);
+    for (const key of allowed) {
+      if (settings[key] !== undefined) merged[key] = settings[key];
+    }
+    if (typeof merged.notifyMinAmount === 'string') {
+      merged.notifyMinAmount = parseInt(merged.notifyMinAmount, 10) || 0;
+    }
+    if (typeof merged.holdPeriodHours === 'string') {
+      merged.holdPeriodHours = parseInt(merged.holdPeriodHours, 10) || 0;
+    }
+    merged.notifyMinAmount = Math.max(0, Number(merged.notifyMinAmount) || 0);
+    merged.holdPeriodHours = Math.max(0, Math.min(168, Number(merged.holdPeriodHours) || 0));
+    u.settings = merged;
+  }
+
+  saveDb(db);
+  const { password: __, ...userPublic } = u;
+  res.json({
+    settings: u.settings,
+    profile: {
+      id: userPublic.id,
+      name: userPublic.name,
+      email: userPublic.email,
+      telegram: userPublic.telegram,
+      role: userPublic.role,
+    },
+  });
 });
 
 // ========== МЕРЧАНТЫ ==========
@@ -210,6 +383,7 @@ app.post('/api/merchants/:id/deposit', requireAuth, (req, res) => {
   
   merchant.balance = (merchant.balance || 0) + Number(amount);
   
+  const depositAmount = Number(amount);
   const transaction = {
     id: nextId(db.transactions || []),
     merchantId: String(id),
@@ -224,6 +398,40 @@ app.post('/api/merchants/:id/deposit', requireAuth, (req, res) => {
   
   if (!Array.isArray(db.transactions)) db.transactions = [];
   db.transactions.push(transaction);
+  
+  // Реферальная программа: 0.5% от пополнения идёт пригласившему
+  const REFERRAL_PERCENT = 0.5;
+  const merchantUserId = merchant.userId ?? (id === 1 ? 1 : null);
+  if (merchantUserId) {
+    const referredUser = db.users.find(u => u.id === merchantUserId);
+    if (referredUser && referredUser.referrerId) {
+      const referrer = db.users.find(u => u.id === referredUser.referrerId);
+      if (referrer) {
+        const rewardAmount = Math.round(depositAmount * (REFERRAL_PERCENT / 100));
+        if (rewardAmount > 0) {
+          const referrerMerchant = db.merchants.find(m => String(m.userId) === String(referrer.id));
+          if (referrerMerchant) {
+            referrerMerchant.balance = (referrerMerchant.balance || 0) + rewardAmount;
+          }
+          db.transactions.push({
+            id: nextId(db.transactions),
+            type: 'referral_reward',
+            userId: String(referrer.id),
+            referrerId: String(referrer.id),
+            referredUserId: String(referredUser.id),
+            amount: rewardAmount,
+            baseAmount: depositAmount,
+            sourceType: 'merchant_deposit',
+            sourceTransactionId: transaction.id,
+            currency: '₽',
+            status: 'completed',
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
+  }
+  
   saveDb(db);
   
   const { apiKey, ...publicMerchant } = merchant;
@@ -245,7 +453,10 @@ function initPaymentMethods(db) {
 
 // Инициализация тестового мерчанта
 function initMerchants(db) {
-  if (!Array.isArray(db.merchants) || db.merchants.length === 0) {
+  if (!Array.isArray(db.merchants)) db.merchants = [];
+  const m1 = db.merchants.find(m => m.id === 1);
+  if (m1 && m1.userId == null) { m1.userId = 1; saveDb(db); }
+  if (db.merchants.length === 0) {
     db.merchants = [
       {
         id: 1,
@@ -253,6 +464,7 @@ function initMerchants(db) {
         apiKey: 'test_merchant_key_' + crypto.randomBytes(16).toString('hex'),
         balance: 0,
         enabled: true,
+        userId: 1,
         createdAt: new Date().toISOString(),
       },
     ];
@@ -453,7 +665,17 @@ app.post('/api/kyc/verify', requireAuth, (req, res) => {
 // ========== ЗАЯВКИ НА ВЫПЛАТУ (P2P) ==========
 
 const PAYOUT_TIME_LIMIT_MS = 20 * 60 * 1000; // 20 минут
-const PAYOUT_COMMISSION_PERCENT = 1;
+const REFERRAL_PERCENT = 0.5;
+const COMMISSION_TIERS = [
+  { min: 100, max: 999, percent: 13.5, minDeposit: 5000 },
+  { min: 1000, max: 4999, percent: 10.5, minDeposit: 10000 },
+  { min: 5000, max: 19999, percent: 10, minDeposit: 30000 },
+  { min: 20000, max: 300000, percent: 8, minDeposit: 50000 },
+];
+function getCommissionRate(amount, insuranceDeposit) {
+  const tier = COMMISSION_TIERS.find(t => amount >= t.min && amount <= t.max && insuranceDeposit >= t.minDeposit);
+  return tier ? tier.percent : COMMISSION_TIERS[0]?.percent ?? 13.5;
+}
 
 function initPayoutRequests(db) {
   if (!Array.isArray(db.payoutRequests)) db.payoutRequests = [];
@@ -529,15 +751,23 @@ app.patch('/api/payout-requests/:id/complete', requireAuth, (req, res) => {
   const now = new Date();
   if (new Date(request.expiresAt) < now) return res.status(400).json({ error: 'Время на оплату истекло' });
 
-  const merchant = db.merchants.find(m => m.id === 1) || db.merchants[0];
-  const commission = Math.round(request.amount * (PAYOUT_COMMISSION_PERCENT / 100));
-  const rewardAmount = request.amount + commission; // 5000 + 50 = 5050 — зачисляем на баланс
+  const traderMerchant = db.merchants.find(m => String(m.userId) === String(req.user.id)) || db.merchants.find(m => m.id === 1) || db.merchants[0];
+  const merchant = traderMerchant;
+  const trader = req.user;
+  const hasReferrer = !!trader.referrerId;
+  const traderInsuranceDeposit = (db.transactions || [])
+    .filter(t => t.type === 'merchant_deposit' && t.status === 'completed' && String(t.merchantId) === String(merchant?.id))
+    .reduce((sum, t) => sum + t.amount, 0);
+  const baseRate = getCommissionRate(request.amount, traderInsuranceDeposit);
+  const traderRate = hasReferrer ? baseRate - REFERRAL_PERCENT : baseRate;
+  const referralCut = hasReferrer ? Math.round(request.amount * (REFERRAL_PERCENT / 100)) : 0;
+  const merchantCommission = Math.round(request.amount * (traderRate / 100));
+  const rewardAmount = request.amount + Math.max(0, merchantCommission);
 
   request.status = 'completed';
   request.completedAt = now.toISOString();
   request.receiptBase64 = receiptBase64;
 
-  // При завершении выплаты зачисляем сумму + 1% на баланс (5050₽ при выплате 5000₽, профит 50₽)
   if (merchant) {
     merchant.balance = (merchant.balance || 0) + rewardAmount;
   }
@@ -547,7 +777,7 @@ app.patch('/api/payout-requests/:id/complete', requireAuth, (req, res) => {
     merchantId: String(merchant?.id || 1),
     amount: rewardAmount,
     baseAmount: request.amount,
-    commission,
+    commission: Math.max(0, merchantCommission),
     currency: '₽',
     status: 'completed',
     payoutRequestId: request.id,
@@ -555,6 +785,29 @@ app.patch('/api/payout-requests/:id/complete', requireAuth, (req, res) => {
   };
   if (!Array.isArray(db.transactions)) db.transactions = [];
   db.transactions.push(tx);
+
+  if (hasReferrer && referralCut > 0) {
+    const referrer = db.users.find(u => u.id === trader.referrerId);
+    const referrerMerchant = referrer ? db.merchants.find(m => String(m.userId) === String(referrer.id)) : null;
+    if (referrerMerchant) {
+      referrerMerchant.balance = (referrerMerchant.balance || 0) + referralCut;
+    }
+    db.transactions.push({
+      id: nextId(db.transactions),
+      type: 'referral_reward',
+      userId: String(referrer.id),
+      referrerId: String(referrer.id),
+      referredUserId: String(trader.id),
+      amount: referralCut,
+      baseAmount: request.amount,
+      sourceType: 'payout_reward',
+      sourceTransactionId: tx.id,
+      currency: '₽',
+      status: 'completed',
+      createdAt: now.toISOString(),
+    });
+  }
+
   saveDb(db);
   res.json({ ...request, rewardAmount });
 });
@@ -576,6 +829,121 @@ app.post('/api/payout-requests/:id/cancel', requireAuth, (req, res) => {
   request.expiresAt = null;
   saveDb(db);
   res.json(request);
+});
+
+// ========== УСТРОЙСТВА (РЕКВИЗИТЫ МЕРЧАНТА) ==========
+
+function initMerchantDevices(db) {
+  if (!Array.isArray(db.merchantDevices)) db.merchantDevices = [];
+}
+
+// Получить устройства мерчанта
+app.get('/api/merchant-devices', requireAuth, (req, res) => {
+  const db = getDb();
+  initMerchantDevices(db);
+  const devices = (db.merchantDevices || []).filter(d => String(d.userId) === String(req.user.id));
+  res.json(devices);
+});
+
+// Добавить устройство
+app.post('/api/merchant-devices', requireAuth, (req, res) => {
+  const db = getDb();
+  initMerchantDevices(db);
+  const { type, requisites, bank, limitRange, maxTurnoverPerDay, maxTurnoverTotal } = req.body || {};
+  if (!type || !requisites || !limitRange) {
+    return res.status(400).json({ error: 'Укажите type, requisites и limitRange' });
+  }
+  if (!['card_ru', 'sbp'].includes(type)) {
+    return res.status(400).json({ error: 'type должен быть card_ru или sbp' });
+  }
+  const validRanges = ['100-999', '1000-4999', '5000-19999', '20000-300000'];
+  if (!validRanges.includes(limitRange)) {
+    return res.status(400).json({ error: 'Недопустимый лимит' });
+  }
+  const transactions = db.transactions || [];
+  const insuranceDeposit = transactions
+    .filter(t => t.type === 'merchant_deposit' && t.status === 'completed')
+    .reduce((sum, t) => sum + t.amount, 0);
+  const rangeMinDeposit = { '100-999': 5000, '1000-4999': 10000, '5000-19999': 30000, '20000-300000': 50000 };
+  if (insuranceDeposit < rangeMinDeposit[limitRange]) {
+    return res.status(400).json({ error: 'Недостаточный страховой депозит для выбранного лимита' });
+  }
+  if (insuranceDeposit < 5000) {
+    return res.status(400).json({ error: 'Страховой депозит должен быть от 5 000 ₽' });
+  }
+  const device = {
+    id: nextId(db.merchantDevices),
+    userId: req.user.id,
+    type: String(type),
+    requisites: String(requisites).trim(),
+    bank: String(bank || '').trim(),
+    limitRange: String(limitRange),
+    maxTurnoverPerDay: Math.max(0, Number(maxTurnoverPerDay) || 0),
+    maxTurnoverTotal: Math.max(0, Number(maxTurnoverTotal) || 0),
+    online: true,
+    createdAt: new Date().toISOString(),
+  };
+  db.merchantDevices.push(device);
+  saveDb(db);
+  res.status(201).json(device);
+});
+
+// Редактировать устройство
+app.patch('/api/merchant-devices/:id', requireAuth, (req, res) => {
+  const db = getDb();
+  initMerchantDevices(db);
+  const id = parseInt(req.params.id, 10);
+  const device = db.merchantDevices?.find(d => d.id === id);
+  if (!device) return res.status(404).json({ error: 'Устройство не найдено' });
+  if (String(device.userId) !== String(req.user.id)) {
+    return res.status(403).json({ error: 'Не ваше устройство' });
+  }
+  const { type, requisites, bank, limitRange, maxTurnoverPerDay, maxTurnoverTotal, online } = req.body || {};
+  if (online !== undefined) device.online = Boolean(online);
+  if (type !== undefined) {
+    if (!['card_ru', 'sbp'].includes(type)) {
+      return res.status(400).json({ error: 'type должен быть card_ru или sbp' });
+    }
+    device.type = String(type);
+  }
+  if (requisites !== undefined) {
+    if (!String(requisites).trim()) return res.status(400).json({ error: 'Укажите реквизиты' });
+    device.requisites = String(requisites).trim();
+  }
+  if (bank !== undefined) device.bank = String(bank || '').trim();
+  if (limitRange !== undefined) {
+    const validRanges = ['100-999', '1000-4999', '5000-19999', '20000-300000'];
+    if (!validRanges.includes(limitRange)) {
+      return res.status(400).json({ error: 'Недопустимый лимит' });
+    }
+    const transactions = db.transactions || [];
+    const insuranceDeposit = transactions
+      .filter(t => t.type === 'merchant_deposit' && t.status === 'completed')
+      .reduce((sum, t) => sum + t.amount, 0);
+    const rangeMinDeposit = { '100-999': 5000, '1000-4999': 10000, '5000-19999': 30000, '20000-300000': 50000 };
+    if (insuranceDeposit < rangeMinDeposit[limitRange]) {
+      return res.status(400).json({ error: 'Недостаточный страховой депозит для выбранного лимита' });
+    }
+    device.limitRange = String(limitRange);
+  }
+  if (maxTurnoverPerDay !== undefined) device.maxTurnoverPerDay = Math.max(0, Number(maxTurnoverPerDay) || 0);
+  if (maxTurnoverTotal !== undefined) device.maxTurnoverTotal = Math.max(0, Number(maxTurnoverTotal) || 0);
+  saveDb(db);
+  res.json(device);
+});
+
+// Удалить устройство
+app.delete('/api/merchant-devices/:id', requireAuth, (req, res) => {
+  const db = getDb();
+  const id = parseInt(req.params.id, 10);
+  const device = db.merchantDevices?.find(d => d.id === id);
+  if (!device) return res.status(404).json({ error: 'Устройство не найдено' });
+  if (String(device.userId) !== String(req.user.id)) {
+    return res.status(403).json({ error: 'Не ваше устройство' });
+  }
+  db.merchantDevices = db.merchantDevices.filter(d => d.id !== id);
+  saveDb(db);
+  res.json({ ok: true });
 });
 
 // Получить статистику
@@ -627,6 +995,20 @@ app.get('/api/stats', requireAuth, (req, res) => {
   res.json(stats);
 });
 
-app.listen(PORT, () => {
-  console.log(`Ship Pay Backend: http://localhost:${PORT}`);
-});
+module.exports = app;
+
+if (require.main === module) {
+  const server = app.listen(PORT, () => {
+    console.log(`Enter Pay Backend: http://localhost:${PORT}`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\nPort ${PORT} is already in use.`);
+      console.error('Run stop-dev.bat in the project folder, then start again.\n');
+    } else {
+      console.error(err);
+    }
+    process.exit(1);
+  });
+}

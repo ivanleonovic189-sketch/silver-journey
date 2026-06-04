@@ -6,20 +6,38 @@ import Deals from './components/Deals';
 import Appeals from './components/Appeals';
 import Payouts from './components/Payouts';
 import History from './components/History';
+import Devices from './components/Devices';
+import Ref from './components/Ref';
 import TopNav from './components/TopNav';
 import Loader from './components/Loader';
 import WalletModal from './components/WalletModal';
+import Settings from './components/Settings';
+
+function readStoredSession() {
+  const savedToken = localStorage.getItem('enterPayToken');
+  const savedUser = localStorage.getItem('enterPayUser');
+  if (!savedToken || !savedUser) {
+    return { token: null, user: null, hasSession: false };
+  }
+  try {
+    return { token: savedToken, user: JSON.parse(savedUser), hasSession: true };
+  } catch {
+    return { token: null, user: null, hasSession: false };
+  }
+}
 
 export default function App() {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
+  const storedSession = readStoredSession();
+  const [user, setUser] = useState(storedSession.user);
+  const [token, setToken] = useState(storedSession.token);
   const [merchants, setMerchants] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [payoutRequests, setPayoutRequests] = useState([]);
   const [stats, setStats] = useState(null);
   const [paymentMethods, setPaymentMethods] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const validTabs = ['dashboard', 'deals', 'appeals', 'payouts', 'history', 'devices', 'pay', 'ref', 'settings', 'merchants', 'transactions', 'stats'];
+  const [merchantDevices, setMerchantDevices] = useState([]);
+  const [loading, setLoading] = useState(storedSession.hasSession);
+  const validTabs = ['dashboard', 'deals', 'appeals', 'payouts', 'history', 'devices', 'ref', 'settings', 'merchants', 'transactions', 'stats'];
   const [activeTab, setActiveTabState] = useState(() => {
     const hash = window.location.hash.slice(1) || 'dashboard';
     return validTabs.includes(hash) ? hash : 'dashboard';
@@ -32,19 +50,33 @@ export default function App() {
   useEffect(() => {
     const onHashChange = () => {
       const hash = window.location.hash.slice(1);
+      if (hash.startsWith('ref=')) return; // ref=CODE для реферальной регистрации
+      if (hash === 'ref') {
+        setShowRefModal(true);
+        setActiveTabState('dashboard');
+        window.location.hash = 'dashboard';
+        return;
+      }
       if (validTabs.includes(hash)) setActiveTabState(hash);
     };
     window.addEventListener('hashchange', onHashChange);
+    const h = window.location.hash.slice(1);
+    if (h === 'ref') {
+      setShowRefModal(true);
+      setActiveTabState('dashboard');
+      window.location.hash = 'dashboard';
+    }
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showRefModal, setShowRefModal] = useState(false);
   const [usdtRate, setUsdtRate] = useState(() => {
     // Загружаем сохраненный курс из localStorage при инициализации
-    const savedRate = localStorage.getItem('shipPayUsdtRate');
+    const savedRate = localStorage.getItem('enterPayUsdtRate');
     return savedRate ? parseFloat(savedRate) : null;
   });
   const [theme, setTheme] = useState(() => {
-    const savedTheme = localStorage.getItem('shipPayTheme');
+    const savedTheme = localStorage.getItem('enterPayTheme');
     return savedTheme || 'dark'; // Дефолт - темная тема
   });
   const [showMerchantForm, setShowMerchantForm] = useState(false);
@@ -81,7 +113,7 @@ export default function App() {
           const usdtRubRate = usdtUsdPrice * usdRubRate;
           setUsdtRate(usdtRubRate);
           // Сохраняем курс в localStorage
-          localStorage.setItem('shipPayUsdtRate', usdtRubRate.toString());
+          localStorage.setItem('enterPayUsdtRate', usdtRubRate.toString());
         } else {
           throw new Error('Курс USD/RUB не найден');
         }
@@ -97,7 +129,7 @@ export default function App() {
         if (data.tether && data.tether.rub) {
           setUsdtRate(data.tether.rub);
           // Сохраняем курс в localStorage
-          localStorage.setItem('shipPayUsdtRate', data.tether.rub.toString());
+          localStorage.setItem('enterPayUsdtRate', data.tether.rub.toString());
         } else {
           throw new Error('Курс не найден');
         }
@@ -112,7 +144,7 @@ export default function App() {
   // Автообновление курса USDT каждые 5 минут (без обновления при F5)
   useEffect(() => {
     // Загружаем курс только если его нет в localStorage (первый запуск)
-    const savedRate = localStorage.getItem('shipPayUsdtRate');
+    const savedRate = localStorage.getItem('enterPayUsdtRate');
     if (!savedRate) {
       fetchUsdtRate();
     }
@@ -124,12 +156,12 @@ export default function App() {
   // Применение темы при загрузке и изменении
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('shipPayTheme', theme);
+    localStorage.setItem('enterPayTheme', theme);
   }, [theme]);
 
   // Применение сохраненной темы при первой загрузке
   useEffect(() => {
-    const savedTheme = localStorage.getItem('shipPayTheme') || 'dark';
+    const savedTheme = localStorage.getItem('enterPayTheme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
 
@@ -139,69 +171,85 @@ export default function App() {
 
   // Проверка авторизации при загрузке
   useEffect(() => {
-    const savedToken = localStorage.getItem('shipPayToken');
-    const savedUser = localStorage.getItem('shipPayUser');
-    
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-      verifyToken(savedToken);
-    } else {
-      setLoading(false);
+    if (storedSession.hasSession) {
+      verifyToken(storedSession.token);
     }
   }, []);
 
-  // Загрузка данных после авторизации
+  // Загрузка данных после авторизации + прелоадер (не дольше 5 сек)
   useEffect(() => {
     if (token && user) {
+      let cancelled = false;
+      const load = async () => {
+        try {
+          await Promise.race([
+            Promise.all([
+              fetchStats(),
+              new Promise((r) => setTimeout(r, 1500)),
+            ]),
+            new Promise((r) => setTimeout(r, 5000)),
+          ]);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      };
+      load();
       fetchMerchants();
       fetchPaymentMethods();
-      fetchStats();
       fetchTransactions();
       fetchPayoutRequests();
+      fetchMerchantDevices();
       const interval = setInterval(() => {
         fetchMerchants();
         fetchStats();
         fetchTransactions();
         fetchPayoutRequests();
+        fetchMerchantDevices();
       }, 10000);
-      return () => clearInterval(interval);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
     }
   }, [token, user]);
 
   const verifyToken = async (authToken) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     try {
       const res = await fetch(`${API}/api/auth/me`, {
         headers: {
-          'Authorization': `Bearer ${authToken}`,
+          Authorization: `Bearer ${authToken}`,
           'x-auth-token': authToken,
         },
+        signal: controller.signal,
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
-        setLoading(false);
       } else {
-        localStorage.removeItem('shipPayToken');
-        localStorage.removeItem('shipPayUser');
+        localStorage.removeItem('enterPayToken');
+        localStorage.removeItem('enterPayUser');
         setToken(null);
         setUser(null);
         setLoading(false);
       }
     } catch (err) {
-      localStorage.removeItem('shipPayToken');
-      localStorage.removeItem('shipPayUser');
+      localStorage.removeItem('enterPayToken');
+      localStorage.removeItem('enterPayUser');
       setToken(null);
       setUser(null);
       setLoading(false);
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
   const handleLogin = (userData, authToken) => {
+    setLoading(true);
     setUser(userData);
     setToken(authToken);
-    setLoading(false);
   };
 
   const handleLogout = async () => {
@@ -217,8 +265,8 @@ export default function App() {
       console.error('Logout error:', err);
     }
     
-    localStorage.removeItem('shipPayToken');
-    localStorage.removeItem('shipPayUser');
+    localStorage.removeItem('enterPayToken');
+    localStorage.removeItem('enterPayUser');
     setUser(null);
     setToken(null);
   };
@@ -256,6 +304,33 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to fetch payment methods:', err);
+    }
+  };
+
+  const fetchMerchantDevices = async () => {
+    try {
+      const res = await fetch(`${API}/api/merchant-devices`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMerchantDevices(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch merchant devices:', err);
+    }
+  };
+
+  const handleDeviceToggleOnline = async (deviceId, online) => {
+    try {
+      const res = await fetch(`${API}/api/merchant-devices/${deviceId}`, {
+        method: 'PATCH',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ online }),
+      });
+      if (res.ok) await fetchMerchantDevices();
+    } catch (err) {
+      console.error('Failed to toggle device:', err);
     }
   };
 
@@ -368,7 +443,7 @@ export default function App() {
       right: 20px;
       padding: 1rem 1.5rem;
       background: ${type === 'success' ? 'var(--green)' : 'var(--red)'};
-      color: ${type === 'success' ? '#000' : '#fff'};
+      color: ${type === 'success' ? '#fff' : '#fff'};
       border-radius: 10px;
       font-weight: 600;
       z-index: 10000;
@@ -513,18 +588,28 @@ export default function App() {
     }
   };
 
-  // Если не авторизован, показываем форму авторизации
-  if (!user || !token) {
-    return <Auth onLogin={handleLogin} />;
+  const refMatch = (window.location.hash || window.location.search).match(/ref=([A-Za-z0-9]+)/);
+  const referralCode = refMatch ? refMatch[1] : null;
+  const isAuthed = Boolean(user && token);
+
+  if (loading && isAuthed) {
+    return (
+      <div className="ep-shell">
+        <Loader user={user} />
+      </div>
+    );
   }
 
-  // Если загружается, показываем прелоадер
-  if (loading) {
-    return <Loader user={user} />;
+  if (!isAuthed) {
+    return (
+      <div className="ep-shell">
+        <Auth onLogin={handleLogin} referralCode={referralCode} />
+      </div>
+    );
   }
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="ep-shell" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh' }}>
       {/* Верхняя навигация */}
       <TopNav
         activeTab={activeTab}
@@ -533,12 +618,14 @@ export default function App() {
         user={user}
         balance={stats?.balance ?? stats?.totalAmount}
         onWalletClick={() => setShowWalletModal(true)}
+        onRefClick={() => setShowRefModal(true)}
         theme={theme}
         onThemeToggle={toggleTheme}
+        merchantDevices={merchantDevices}
       />
 
       {/* Основной контент */}
-      <div style={{ flex: 1, minHeight: 'calc(100vh - 72px)' }}>
+      <div className="ep-app-main" style={{ flex: 1, minHeight: 'calc(100vh - 72px)' }}>
         {/* Контент */}
         {activeTab === 'dashboard' && (
           <Dashboard
@@ -547,16 +634,18 @@ export default function App() {
             transactions={transactions}
             merchants={merchants}
             paymentMethods={paymentMethods}
+            merchantDevices={merchantDevices}
             payoutRequests={payoutRequests}
             onLogout={handleLogout}
             onTabChange={setActiveTab}
             onWalletClick={() => setShowWalletModal(true)}
             usdtRate={usdtRate}
+            onDeviceToggleOnline={handleDeviceToggleOnline}
           />
         )}
 
         {activeTab !== 'dashboard' && (
-          <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '2rem' }}>
+          <div className="ep-page">
             {/* Контент */}
             {activeTab === 'deals' && (
               <Deals
@@ -594,15 +683,26 @@ export default function App() {
                 user={user}
               />
             )}
-            {(activeTab === 'devices' || activeTab === 'pay' || activeTab === 'ref' || activeTab === 'settings') && (
-              <div style={{
-                textAlign: 'center',
-                padding: '4rem 2rem',
-                color: 'var(--text-muted)',
-                fontSize: '1.1rem',
-              }}>
-                Раздел "{activeTab === 'devices' ? 'Устройства' : activeTab === 'pay' ? 'Pay' : activeTab === 'ref' ? 'Ref' : 'Настройки'}" в разработке
-              </div>
+            {activeTab === 'devices' && (
+              <Devices
+                stats={stats}
+                payoutRequests={payoutRequests}
+                getAuthHeaders={getAuthHeaders}
+                onTabChange={setActiveTab}
+                onDeviceAdded={fetchMerchantDevices}
+              />
+            )}
+            {activeTab === 'settings' && (
+              <Settings
+                user={user}
+                getAuthHeaders={getAuthHeaders}
+                onUserUpdate={(profile) => {
+                  if (profile) {
+                    setUser((u) => ({ ...u, ...profile }));
+                    localStorage.setItem('enterPayUser', JSON.stringify({ ...user, ...profile }));
+                  }
+                }}
+              />
             )}
             {activeTab === 'merchants' && (
               <div>
@@ -618,7 +718,7 @@ export default function App() {
                 style={{
                   padding: '0.875rem 1.75rem',
                   background: 'var(--green)',
-                  color: '#000',
+                  color: '#fff',
                   border: 'none',
                   borderRadius: '10px',
                   fontWeight: 600,
@@ -678,7 +778,7 @@ export default function App() {
                     style={{
                       padding: '0.875rem 1.75rem',
                       background: 'var(--green)',
-                      color: '#000',
+                      color: '#fff',
                       border: 'none',
                       borderRadius: '10px',
                       fontWeight: 600,
@@ -743,7 +843,7 @@ export default function App() {
                         fontSize: '0.75rem',
                         fontWeight: 600,
                         background: merchant.enabled
-                          ? 'rgba(0, 255, 136, 0.15)'
+                          ? 'var(--positive-soft)'
                           : 'rgba(239, 83, 80, 0.15)',
                         color: merchant.enabled ? 'var(--green-bright)' : 'var(--red)',
                       }}
@@ -789,7 +889,7 @@ export default function App() {
                       }}
                       onMouseEnter={(e) => {
                         e.target.style.background = 'var(--green)';
-                        e.target.style.color = '#000';
+                        e.target.style.color = '#fff';
                         e.target.style.borderColor = 'var(--green)';
                       }}
                       onMouseLeave={(e) => {
@@ -821,7 +921,7 @@ export default function App() {
                       }}
                       onMouseEnter={(e) => {
                         e.target.style.background = 'var(--green)';
-                        e.target.style.color = '#000';
+                        e.target.style.color = '#fff';
                         e.target.style.borderColor = 'var(--green)';
                       }}
                       onMouseLeave={(e) => {
@@ -853,7 +953,7 @@ export default function App() {
                       }}
                       onMouseEnter={(e) => {
                         e.target.style.background = 'var(--green)';
-                        e.target.style.color = '#000';
+                        e.target.style.color = '#fff';
                         e.target.style.borderColor = 'var(--green)';
                       }}
                       onMouseLeave={(e) => {
@@ -952,7 +1052,7 @@ export default function App() {
                         fontWeight: 600,
                         background:
                           tx.status === 'completed'
-                            ? 'rgba(0, 255, 136, 0.15)'
+                            ? 'var(--positive-soft)'
                             : tx.status === 'pending'
                             ? 'rgba(255, 184, 77, 0.15)'
                             : 'rgba(239, 83, 80, 0.15)',
@@ -974,7 +1074,7 @@ export default function App() {
                           style={{
                             padding: '0.5rem 1rem',
                             background: 'var(--green)',
-                            color: '#000',
+                            color: '#fff',
                             border: 'none',
                             borderRadius: '8px',
                             fontSize: '0.85rem',
@@ -1210,7 +1310,7 @@ export default function App() {
                     flex: 1,
                     padding: '0.875rem',
                     background: 'var(--green)',
-                    color: '#000',
+                    color: '#fff',
                     border: 'none',
                     borderRadius: '10px',
                     fontWeight: 600,
@@ -1373,7 +1473,7 @@ export default function App() {
                     flex: 1,
                     padding: '0.875rem',
                     background: 'var(--green)',
-                    color: '#000',
+                    color: '#fff',
                     border: 'none',
                     borderRadius: '10px',
                     fontWeight: 600,
@@ -1574,7 +1674,7 @@ export default function App() {
                     flex: 1,
                     padding: '0.875rem',
                     background: 'var(--green)',
-                    color: '#000',
+                    color: '#fff',
                     border: 'none',
                     borderRadius: '10px',
                     fontWeight: 600,
@@ -1608,6 +1708,9 @@ export default function App() {
       )}
 
       {/* Модалка кошелька */}
+      {showRefModal && (
+        <Ref getAuthHeaders={getAuthHeaders} onClose={() => setShowRefModal(false)} />
+      )}
       {showWalletModal && (
         <WalletModal
           user={user}
@@ -1615,7 +1718,7 @@ export default function App() {
           onClose={() => setShowWalletModal(false)}
           onReplenish={() => {
             setShowWalletModal(false);
-            setActiveTab('pay');
+            setActiveTab('dashboard');
           }}
           onWithdraw={() => {
             setShowWalletModal(false);

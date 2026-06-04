@@ -1,17 +1,24 @@
 const fs = require('fs');
 const path = require('path');
 
-const dbPath = path.join(__dirname, 'payments.json');
+const isServerless = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+
+function getDbPath() {
+  return isServerless
+    ? path.join('/tmp', 'payments.json')
+    : path.join(__dirname, 'payments.json');
+}
 
 const defaultData = {
   transactions: [],
   paymentMethods: [],
   merchants: [],
+  merchantDevices: [],
   kycVerifications: [],
   users: [],
   sessions: [],
   payoutRequests: [],
-  config: { name: 'Ship Pay', currency: '₽' },
+  config: { name: 'Enter Pay', currency: '₽' },
 };
 
 function nextId(arr) {
@@ -21,7 +28,7 @@ function nextId(arr) {
 
 function loadDb() {
   try {
-    const raw = fs.readFileSync(dbPath, 'utf8');
+    const raw = fs.readFileSync(getDbPath(), 'utf8');
     return JSON.parse(raw);
   } catch {
     return { ...defaultData };
@@ -29,11 +36,19 @@ function loadDb() {
 }
 
 function saveDb(data) {
-  fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
+  fs.writeFileSync(getDbPath(), JSON.stringify(data, null, 2), 'utf8');
 }
 
 function initDb() {
-  if (!fs.existsSync(dbPath)) {
+  const dbPath = getDbPath();
+  if (isServerless && !fs.existsSync(dbPath)) {
+    const seedPath = path.join(__dirname, 'payments.json');
+    if (fs.existsSync(seedPath)) {
+      fs.copyFileSync(seedPath, dbPath);
+    } else {
+      saveDb(defaultData);
+    }
+  } else if (!fs.existsSync(dbPath)) {
     saveDb(defaultData);
   }
   return loadDb();

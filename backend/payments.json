@@ -1,6 +1,26 @@
 {
   "transactions": [
     {
+      "id": 4,
+      "type": "merchant_deposit",
+      "merchantId": "1",
+      "amount": 50000,
+      "currency": "₽",
+      "status": "completed",
+      "createdAt": "2026-02-12T16:00:00.000Z"
+    },
+    {
+      "id": 5,
+      "type": "payout_reward",
+      "merchantId": "1",
+      "amount": 5049670,
+      "baseAmount": 5000000,
+      "commission": 49670,
+      "currency": "₽",
+      "status": "completed",
+      "createdAt": "2026-02-12T16:00:01.000Z"
+    },
+    {
       "id": 1,
       "type": "payout_reward",
       "merchantId": "1",
@@ -59,14 +79,57 @@
       "id": 1,
       "name": "Тестовый мерчант",
       "apiKey": "test_merchant_key_f1d84f98597c42d63504236202758b70",
-      "balance": 27330,
+      "balance": 5127000,
       "enabled": true,
-      "createdAt": "2026-02-12T07:37:02.666Z"
+      "createdAt": "2026-02-12T07:37:02.666Z",
+      "userId": 1
+    },
+    {
+      "id": 2,
+      "name": "нувориш (мерчант)",
+      "apiKey": "merchant_63c8f5d1a07a539677b467b4fa3fe4dc",
+      "balance": 0,
+      "enabled": true,
+      "userId": 2,
+      "createdAt": "2026-06-04T18:32:35.518Z"
+    },
+    {
+      "id": 3,
+      "name": "нувориш (мерчант)",
+      "apiKey": "merchant_49ada0f0f04044b12af1479352de791d",
+      "balance": 0,
+      "enabled": true,
+      "userId": 3,
+      "createdAt": "2026-06-04T20:51:40.669Z"
+    }
+  ],
+  "merchantDevices": [
+    {
+      "id": 1,
+      "userId": 1,
+      "type": "card_ru",
+      "requisites": "222222",
+      "bank": "ВТБ",
+      "limitRange": "100-999",
+      "createdAt": "2026-02-12T21:20:17.695Z",
+      "online": false
+    },
+    {
+      "id": 2,
+      "userId": 2,
+      "type": "card_ru",
+      "requisites": "22000000202002",
+      "bank": "АБ РОССИЯ",
+      "limitRange": "100-999",
+      "maxTurnoverPerDay": 1200,
+      "maxTurnoverTotal": 20000,
+      "online": true,
+      "createdAt": "2026-06-04T20:05:22.819Z"
     }
   ],
   "kycVerifications": [],
   "config": {
-    "name": "Ship Pay",
+    "name": "Enter Pay",
     "currency": "₽"
   },
   "users": [
@@ -77,81 +140,74 @@
       "name": "adsasda",
       "telegram": "@xuesos123",
       "role": "merchant",
-      "createdAt": "2026-02-12T07:49:04.131Z"
+      "createdAt": "2026-02-12T07:49:04.131Z",
+      "referralCode": "123123"
+    },
+    {
+      "id": 2,
+      "email": "exoway@gmail.com",
+      "password": "4c31bb9601607f4945801860bca045ab3914d418c74bf02bdb7bd94340051011",
+      "name": "нувориш",
+      "telegram": "exoway",
+      "role": "merchant",
+      "referralCode": null,
+      "referrerId": null,
+      "createdAt": "2026-06-04T18:32:35.518Z"
+    },
+    {
+      "id": 3,
+      "email": "exoway1@gmail.com",
+      "password": "060259ddf0dd15d978fdf5d6346ba889f51666d68c2a4acb2af96233053d458c",
+      "name": "нувориш",
+      "telegram": "exoway1",
+      "role": "merchant",
+      "referralCode": null,
+      "referrerId": null,
+      "createdAt": "2026-06-04T20:51:40.669Z"
     }
   ],
   "sessions": [
     {
-      "token": "9bcc10468912364b52111ad32a389196bfa305e5bd4ae206c04645b93517b13c",
+      "token": "2ce2731aed02ce60f7383f2cb1b57dda884177f20c4871aa951f544b9008875d",
       "userId": 1,
-      "expiresAt": "2026-03-14T07:54:25.736Z",
-      "createdAt": "2026-02-12T07:54:25.736Z"
+      "expiresAt": "2026-07-04T17:42:29.588Z",
+      "createdAt": "2026-06-04T17:42:29.588Z"
     },
     {
-      "token": "64b5bf4cde70e0eb3a8a5542f62874ffcf9e064dffc0daab7c34ff52c134cb74",
+      "token": "10d331f6e1bca4288cad77aa33b4fb17d879346e233c25e99571245b174235b5",
       "userId": 1,
-      "expiresAt": "2026-03-14T07:56:19.920Z",
-      "createdAt": "2026-02-12T07:56:19.920Z"
+      "expiresAt": "2026-07-04T17:52:33.359Z",
+      "createdAt": "2026-06-04T17:52:33.359Z"
     },
     {
-      "token": "a54c19c5372ff7ffe47321acdb22246ba4e985fdb7b02192cc4e10d239679f24",
-      "userId": 1,
-      "expiresAt": "2026-03-14T08:00:34.145Z",
-      "createdAt": "2026-02-12T08:00:34.145Z"
+      "token": "53118e5b493a2e2beff2110dcd40e749eeba3b9a0542635beed5c8903f761c64",
+      "userId": 2,
+      "expiresAt": "2026-07-04T18:32:35.519Z",
+      "createdAt": "2026-06-04T18:32:35.519Z"
     },
     {
-      "token": "2e0985af11fff419dfb45a2349b1f7fbd9ca8c921411457c6931014b667caa97",
-      "userId": 1,
-      "expiresAt": "2026-03-14T08:03:36.862Z",
-      "createdAt": "2026-02-12T08:03:36.862Z"
+      "token": "bca7a00c949b428df586fa61adfc2c6924775ea3fb45c731ac75cbcb8d991233",
+      "userId": 2,
+      "expiresAt": "2026-07-04T19:14:29.414Z",
+      "createdAt": "2026-06-04T19:14:29.414Z"
     },
     {
-      "token": "f9068f235778410aa89afd6f0416fef9ff6a5a6ad6e8ac465619d1e4e191b65c",
-      "userId": 1,
-      "expiresAt": "2026-03-14T08:08:27.691Z",
-      "createdAt": "2026-02-12T08:08:27.691Z"
+      "token": "815051fc66470b0d07eda373f6a0842c87342b35d14bff500ac6f836bfa773b8",
+      "userId": 2,
+      "expiresAt": "2026-07-04T20:49:19.520Z",
+      "createdAt": "2026-06-04T20:49:19.520Z"
     },
     {
-      "token": "cb80144a38780274bea8aafddfa36b9293932782f6a659a3942d44006db9ad61",
-      "userId": 1,
-      "expiresAt": "2026-03-14T08:10:08.692Z",
-      "createdAt": "2026-02-12T08:10:08.692Z"
+      "token": "2222b46a05bf8d075de4af181586a87c8974e47962b05ef2f394a4ea032cf1e0",
+      "userId": 3,
+      "expiresAt": "2026-07-04T20:51:40.670Z",
+      "createdAt": "2026-06-04T20:51:40.670Z"
     },
     {
-      "token": "c6375dfce46157d559c847e9391f2bca089e5aebf7e932eafa8377b63614ffbf",
-      "userId": 1,
-      "expiresAt": "2026-03-14T08:31:53.666Z",
-      "createdAt": "2026-02-12T08:31:53.666Z"
-    },
-    {
-      "token": "1dee042b955d82a2ba1f361062488e4a7af8e4e408079ca809bd74d1eca5a372",
-      "userId": 1,
-      "expiresAt": "2026-03-14T08:32:48.657Z",
-      "createdAt": "2026-02-12T08:32:48.657Z"
-    },
-    {
-      "token": "3f88b76b4a6429e01fb0aa8b79cc32d0b204e8e2cd45f373a602d7836e768c33",
-      "userId": 1,
-      "expiresAt": "2026-03-14T08:42:18.360Z",
-      "createdAt": "2026-02-12T08:42:18.360Z"
-    },
-    {
-      "token": "ce0726b7c999cc81b355a6053fe6c1d9ca01c9895f80699b8a35f0fd7497777c",
-      "userId": 1,
-      "expiresAt": "2026-03-14T09:26:53.312Z",
-      "createdAt": "2026-02-12T09:26:53.312Z"
-    },
-    {
-      "token": "a32ec3f51aca91871aee87f601513270f1457a6953b5158fb4c1deb669b3a559",
-      "userId": 1,
-      "expiresAt": "2026-03-14T09:26:57.397Z",
-      "createdAt": "2026-02-12T09:26:57.397Z"
-    },
-    {
-      "token": "e1f74ebc8172b49b30d322b74c48623694f8008c0f0eac6a42873f06f3612f69",
-      "userId": 1,
-      "expiresAt": "2026-03-14T09:28:25.605Z",
-      "createdAt": "2026-02-12T09:28:25.605Z"
+      "token": "0f0fcfafccd15bbaa32dd42fd90e25821c8bbec2385bb1e7ccf1f8692341ba72",
+      "userId": 3,
+      "expiresAt": "2026-07-04T21:14:24.984Z",
+      "createdAt": "2026-06-04T21:14:24.984Z"
     }
   ],
   "payoutRequests": [
@@ -221,9 +277,12 @@
       "currency": "₽",
       "paymentMethod": "sbp",
       "requisites": "+7 916 555 12 34",
-      "status": "pending",
+      "status": "in_progress",
       "createdAt": "2026-02-12T14:43:40.159Z",
-      "bank": "Райффайзен"
+      "bank": "Райффайзен",
+      "traderId": 1,
+      "acceptedAt": "2026-02-14T00:22:17.278Z",
+      "expiresAt": "2026-02-14T00:42:17.279Z"
     }
   ]
 }

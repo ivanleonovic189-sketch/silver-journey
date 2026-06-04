@@ -1,34 +1,50 @@
-import { useState, useEffect } from 'react';
-
 export default function Loader({ user }) {
   return (
     <div
+      className="ep-loader"
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'var(--bg)',
+        background: 'transparent',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 10000,
+        zIndex: 2,
+        gap: '0.6rem',
+        overflow: 'hidden',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
       <div
         style={{
-          width: '80px',
-          height: '80px',
-          borderRadius: '50%',
-          border: '2px solid var(--border-light)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '1.5rem',
+          position: 'relative',
+          zIndex: 1,
+          display: 'inline-block',
+          fontSize: '2.25rem',
           fontWeight: 700,
-          color: 'var(--text)',
+          letterSpacing: '-0.02em',
         }}
       >
-        SH
+        <span style={{ color: 'var(--text-light)' }}>Enter Pay</span>
+        <span
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            color: 'var(--accent)',
+            clipPath: 'inset(0 100% 0 0)',
+            animation: 'loaderTextFill 1.2s ease-out forwards',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Enter Pay
+        </span>
       </div>
+      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', position: 'relative', zIndex: 1 }}>
+        Загружаем ваш кабинет…
+      </p>
     </div>
   );
 }

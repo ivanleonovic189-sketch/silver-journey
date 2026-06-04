@@ -310,7 +310,7 @@ export default function Payouts({
                   flex: 1,
                   padding: '1rem',
                   background: receiptFile && !submitting ? 'var(--green)' : 'var(--bg-card-hover)',
-                  color: receiptFile && !submitting ? '#000' : 'var(--text-muted)',
+                  color: receiptFile && !submitting ? '#fff' : 'var(--text-muted)',
                   border: 'none',
                   borderRadius: '12px',
                   fontWeight: 600,
@@ -434,11 +434,12 @@ export default function Payouts({
         <div>
           <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Сумма от, ₽</label>
           <input
-            type="number"
-            min="0"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             placeholder="0"
             value={amountFrom}
-            onChange={(e) => setAmountFrom(e.target.value)}
+            onChange={(e) => setAmountFrom(e.target.value.replace(/\D/g, ''))}
             style={{
               width: '120px',
               padding: '0.5rem 0.75rem',
@@ -453,11 +454,12 @@ export default function Payouts({
         <div>
           <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Сумма до, ₽</label>
           <input
-            type="number"
-            min="0"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             placeholder="∞"
             value={amountTo}
-            onChange={(e) => setAmountTo(e.target.value)}
+            onChange={(e) => setAmountTo(e.target.value.replace(/\D/g, ''))}
             style={{
               width: '120px',
               padding: '0.5rem 0.75rem',
@@ -562,25 +564,25 @@ export default function Payouts({
                   disabled={!!inProgressRequest}
                   style={{
                     padding: '0.75rem 1.5rem',
-                    background: inProgressRequest ? 'var(--bg-card-hover)' : 'var(--green)',
-                    color: inProgressRequest ? 'var(--text-muted)' : '#000',
+                    background: inProgressRequest ? 'var(--bg-card-hover)' : 'var(--accent)',
+                    color: inProgressRequest ? 'var(--text-muted)' : '#fff',
                     border: 'none',
                     borderRadius: '10px',
                     fontSize: '0.95rem',
                     fontWeight: 600,
                     cursor: inProgressRequest ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s',
-                    boxShadow: inProgressRequest ? 'none' : '0 2px 8px rgba(0, 255, 136, 0.3)',
+                    boxShadow: inProgressRequest ? 'none' : '0 2px 8px rgba(232, 93, 4, 0.3)',
                   }}
                   onMouseEnter={(e) => {
                     if (!inProgressRequest) {
-                      e.currentTarget.style.background = 'var(--green-bright, #00ff88)';
+                      e.currentTarget.style.background = 'var(--accent-hover)';
                       e.currentTarget.style.transform = 'translateY(-1px)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!inProgressRequest) {
-                      e.currentTarget.style.background = 'var(--green)';
+                      e.currentTarget.style.background = 'var(--accent)';
                       e.currentTarget.style.transform = 'translateY(0)';
                     }
                   }}

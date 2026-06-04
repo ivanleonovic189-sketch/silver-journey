@@ -246,13 +246,13 @@ export default function Deals({
                       fontWeight: 600,
                       background:
                         tx.status === 'completed'
-                          ? 'rgba(0, 255, 136, 0.15)'
+                          ? 'var(--positive-soft)'
                           : tx.status === 'pending'
                           ? 'rgba(255, 184, 77, 0.15)'
                           : 'rgba(239, 83, 80, 0.15)',
                       color:
                         tx.status === 'completed'
-                          ? 'var(--green)'
+                          ? 'var(--positive)'
                           : tx.status === 'pending'
                           ? 'var(--warning)'
                           : 'var(--error)',
@@ -267,7 +267,7 @@ export default function Deals({
                         style={{
                           padding: '0.5rem 1rem',
                           background: 'var(--green)',
-                          color: '#000',
+                          color: '#fff',
                           border: 'none',
                           borderRadius: '8px',
                           fontSize: '0.85rem',
