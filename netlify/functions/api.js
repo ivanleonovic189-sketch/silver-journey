@@ -1,15 +1,7 @@
-const path = require('path');
-const fs = require('fs');
 const serverless = require('serverless-http');
+const app = require('../../backend/server');
 
-function loadApp() {
-  const deployed = path.join(__dirname, 'backend', 'server.js');
-  const local = path.join(__dirname, '..', '..', 'backend', 'server.js');
-  const entry = fs.existsSync(deployed) ? deployed : local;
-  return require(entry);
-}
-
-const apiHandler = serverless(loadApp());
+const apiHandler = serverless(app);
 
 exports.handler = async (event, context) => {
   try {

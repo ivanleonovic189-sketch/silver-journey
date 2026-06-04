@@ -1,10 +1,10 @@
 [build]
-  command = "npm install && npm run install:all && cd netlify/functions && npm install && cd ../.. && cd frontend && npm run build"
+  command = "npm install && npm run install:all && cd frontend && npm run build"
   publish = "frontend/dist"
   functions = "netlify/functions"
 
 [functions]
-  node_bundler = "none"
+  node_bundler = "esbuild"
   included_files = ["backend/**"]
 
 [build.environment]
