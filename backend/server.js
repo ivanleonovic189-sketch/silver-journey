@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
-const { initDb, getDb, saveDb, nextId } = require('./db');
+const { initDb, getDb, saveDb, nextId, ensureDbReady } = require('./db');
+const { createAuthToken, parseAuthToken } = require('./auth-token');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -46,7 +47,32 @@ app.get('/api/health', (_req, res) => {
 
 initDb();
 
+if (process.env.NETLIFY) {
+  app.use(async (req, res, next) => {
+    try {
+      await ensureDbReady();
+      next();
+    } catch (err) {
+      console.error('DB init error:', err);
+      res.status(500).json({ error: 'Database unavailable' });
+    }
+  });
+}
+
 // ========== АВТОРИЗАЦИЯ ==========
+
+function resolveUserFromToken(token) {
+  const jwt = parseAuthToken(token);
+  if (jwt) {
+    const db = getDb();
+    return db.users?.find((u) => u.id === jwt.uid) || null;
+  }
+
+  const db = getDb();
+  const session = db.sessions?.find((s) => s.token === token && s.expiresAt > new Date().toISOString());
+  if (!session) return null;
+  return db.users?.find((u) => u.id === session.userId) || null;
+}
 
 // Middleware для проверки авторизации
 function requireAuth(req, res, next) {
@@ -54,20 +80,13 @@ function requireAuth(req, res, next) {
   if (!token) {
     return res.status(401).json({ error: 'Требуется авторизация' });
   }
-  
-  const db = getDb();
-  const session = db.sessions?.find(s => s.token === token && s.expiresAt > new Date().toISOString());
-  if (!session) {
+
+  const user = resolveUserFromToken(token);
+  if (!user) {
     return res.status(401).json({ error: 'Недействительный токен' });
   }
-  
-  const user = db.users?.find(u => u.id === session.userId);
-  if (!user) {
-    return res.status(401).json({ error: 'Пользователь не найден' });
-  }
-  
+
   req.user = user;
-  req.session = session;
   next();
 }
 
@@ -128,20 +147,8 @@ app.post('/api/auth/register', (req, res) => {
   }
   
   saveDb(db);
-  
-  // Создаем сессию
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 дней
-  
-  if (!Array.isArray(db.sessions)) db.sessions = [];
-  db.sessions.push({
-    token,
-    userId: user.id,
-    expiresAt,
-    createdAt: new Date().toISOString(),
-  });
-  saveDb(db);
-  
+
+  const token = createAuthToken(user.id);
   const { password: _, ...userPublic } = user;
   res.status(201).json({ user: userPublic, token });
 });
@@ -167,21 +174,7 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ error: 'Неверный email или пароль' });
   }
   
-  // Создаем сессию
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 дней
-  
-  if (!Array.isArray(db.sessions)) db.sessions = [];
-  // Удаляем старые сессии этого пользователя
-  db.sessions = db.sessions.filter(s => s.userId !== user.id || s.expiresAt > new Date().toISOString());
-  db.sessions.push({
-    token,
-    userId: user.id,
-    expiresAt,
-    createdAt: new Date().toISOString(),
-  });
-  saveDb(db);
-  
+  const token = createAuthToken(user.id);
   const { password: _, ...userPublic } = user;
   res.json({ user: userPublic, token });
 });
@@ -232,16 +225,8 @@ app.patch('/api/referral/set-code', requireAuth, (req, res) => {
   res.json({ referralCode: raw });
 });
 
-// Выход
-app.post('/api/auth/logout', requireAuth, (req, res) => {
-  const db = getDb();
-  const token = req.headers.authorization?.replace('Bearer ', '') || req.headers['x-auth-token'];
-  
-  if (Array.isArray(db.sessions)) {
-    db.sessions = db.sessions.filter(s => s.token !== token);
-    saveDb(db);
-  }
-  
+// Выход (JWT — stateless, клиент удаляет токен)
+app.post('/api/auth/logout', requireAuth, (_req, res) => {
   res.json({ success: true });
 });
 
