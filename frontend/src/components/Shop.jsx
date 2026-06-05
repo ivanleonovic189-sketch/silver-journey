@@ -6,13 +6,11 @@ const CATEGORIES = [
   { id: 'all', label: 'Все' },
   { id: 'bank_lk', label: 'ЛК банков' },
   { id: 'services', label: 'Сервисы' },
-  { id: 'packs', label: 'Пакеты' },
 ];
 
 const CATEGORY_LABELS = {
   bank_lk: 'ЛК банка',
   services: 'Сервис',
-  packs: 'Пакет',
 };
 
 const fieldStyle = {
