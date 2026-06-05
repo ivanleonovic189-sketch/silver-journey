@@ -607,33 +607,47 @@ body.ep-has-waves #root {
   100% { transform: translateX(-50%); }
 }
 
+[data-theme="light"] .ep-waves {
+  background:
+    linear-gradient(152deg, #e8efff 0%, var(--bg) 32%, #edf8f1 68%, #f5f6f8 100%);
+}
+
+[data-theme="light"] .ep-waves__blob {
+  opacity: 0.78;
+  filter: blur(68px);
+}
+
 [data-theme="light"] .ep-waves__blob--blue {
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.16) 0%, rgba(37, 99, 235, 0.04) 45%, transparent 70%);
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.32) 0%, rgba(37, 99, 235, 0.1) 42%, transparent 68%);
 }
+
 [data-theme="light"] .ep-waves__blob--green {
-  background: radial-gradient(circle, rgba(47, 158, 95, 0.14) 0%, rgba(47, 158, 95, 0.04) 48%, transparent 72%);
+  background: radial-gradient(circle, rgba(47, 158, 95, 0.26) 0%, rgba(47, 158, 95, 0.08) 46%, transparent 70%);
 }
+
 [data-theme="light"] .ep-waves__blob--teal {
-  background: radial-gradient(circle, rgba(20, 184, 166, 0.1) 0%, rgba(37, 99, 235, 0.03) 50%, transparent 72%);
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.2) 0%, rgba(37, 99, 235, 0.06) 48%, transparent 72%);
 }
 
 [data-theme="light"] .ep-waves__ambient {
   background:
-    radial-gradient(ellipse 55% 42% at 8% 12%, rgba(37, 99, 235, 0.09), transparent 58%),
-    radial-gradient(ellipse 48% 38% at 92% 88%, rgba(47, 158, 95, 0.07), transparent 55%),
-    radial-gradient(ellipse 38% 32% at 72% 22%, rgba(20, 184, 166, 0.04), transparent 60%);
+    radial-gradient(ellipse 58% 44% at 6% 10%, rgba(37, 99, 235, 0.14), transparent 56%),
+    radial-gradient(ellipse 50% 40% at 94% 90%, rgba(47, 158, 95, 0.11), transparent 54%),
+    radial-gradient(ellipse 42% 34% at 70% 18%, rgba(20, 184, 166, 0.08), transparent 58%),
+    radial-gradient(ellipse 36% 30% at 28% 72%, rgba(37, 99, 235, 0.06), transparent 62%);
 }
 
 [data-theme="light"] .ep-waves__grid {
-  opacity: 0.025;
+  opacity: 0.05;
   background-image:
-    linear-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.06) 1px, transparent 1px);
+    linear-gradient(rgba(37, 99, 235, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(47, 158, 95, 0.06) 1px, transparent 1px);
+  mask-image: radial-gradient(ellipse 85% 75% at 50% 42%, black 15%, transparent 78%);
 }
 
-[data-theme="light"] .ep-waves__layer--1 path { stroke: rgba(37, 99, 235, 0.12); }
-[data-theme="light"] .ep-waves__layer--2 path { stroke: rgba(47, 158, 95, 0.09); }
-[data-theme="light"] .ep-waves__layer--3 path { stroke: rgba(110, 90, 160, 0.07); }
+[data-theme="light"] .ep-waves__layer--1 path { stroke: rgba(37, 99, 235, 0.2); }
+[data-theme="light"] .ep-waves__layer--2 path { stroke: rgba(47, 158, 95, 0.16); }
+[data-theme="light"] .ep-waves__layer--3 path { stroke: rgba(20, 184, 166, 0.13); }
 
 /* Телефоны */
 /* Сетка дашборда на телефоне */
