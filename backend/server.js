@@ -406,8 +406,48 @@ app.post('/api/auth/logout', requireAuth, (_req, res) => {
   res.json({ success: true });
 });
 
+// Подтверждение магазина по коду (публичная ссылка /acceptcodeEP-XXXX)
+async function verifyShopByCode(db, rawCode) {
+  const codeNorm = String(rawCode || '').trim().toUpperCase();
+  if (!codeNorm) return null;
+  const u = (db.users || []).find(
+    (us) => us.role === 'shop' && String(us.verificationCode || '').toUpperCase() === codeNorm
+  );
+  if (!u) return null;
+  if (u.verified === true) {
+    return { user: u, already: true };
+  }
+  u.verified = true;
+  u.verifiedAt = new Date().toISOString();
+  await saveDbAsync(db);
+  return { user: u, already: false };
+}
+
+app.get('/api/acceptcode/:code', async (req, res) => {
+  try {
+    await ensureDbReady();
+    const db = isServerless ? await reloadDbFromBlob() : getDb();
+    const result = await verifyShopByCode(db, req.params.code);
+    if (!result) {
+      return res.status(404).json({ ok: false });
+    }
+    const { user: u, already } = result;
+    res.json({
+      ok: true,
+      already,
+      userId: u.id,
+      email: u.email,
+      name: u.name,
+      verified: true,
+    });
+  } catch (err) {
+    console.error('Accept code error:', err);
+    res.status(500).json({ ok: false });
+  }
+});
+
 // Подтверждение аккаунта казино (админ / вручную через секрет)
-app.post('/api/admin/verify-user', (req, res) => {
+app.post('/api/admin/verify-user', async (req, res) => {
   const adminSecret = process.env.ADMIN_VERIFY_SECRET;
   if (!adminSecret) {
     return res.status(503).json({ error: 'ADMIN_VERIFY_SECRET не настроен на сервере' });
@@ -425,18 +465,20 @@ app.post('/api/admin/verify-user', (req, res) => {
     const emailNorm = String(email).toLowerCase().trim();
     u = (db.users || []).find((us) => us.email === emailNorm);
   } else if (verificationCode) {
-    const codeNorm = String(verificationCode).trim().toUpperCase();
-    u = (db.users || []).find(
-      (us) => us.role === 'shop' && String(us.verificationCode || '').toUpperCase() === codeNorm
-    );
+    await ensureDbReady();
+    const dbReloaded = isServerless ? await reloadDbFromBlob() : getDb();
+    const result = await verifyShopByCode(dbReloaded, verificationCode);
+    if (result) u = result.user;
   }
-  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
+  if (!u) return res.status(404).json({ ok: false });
   if (u.role !== 'shop') {
-    return res.status(400).json({ error: 'Подтверждение только для роли shop (казино)' });
+    return res.status(400).json({ ok: false });
   }
-  u.verified = true;
-  u.verifiedAt = new Date().toISOString();
-  saveDb(db);
+  if (!u.verified) {
+    u.verified = true;
+    u.verifiedAt = new Date().toISOString();
+    await saveDbAsync(db);
+  }
   res.json({
     ok: true,
     userId: u.id,

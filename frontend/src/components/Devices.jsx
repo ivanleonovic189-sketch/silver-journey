@@ -44,7 +44,6 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
   const [showModal, setShowModal] = useState(false);
   const [editDeviceId, setEditDeviceId] = useState(null);
   const [form, setForm] = useState({ type: 'card_ru', requisites: '', bank: '', limitRange: '', maxTurnoverPerDay: '', maxTurnoverTotal: '' });
-  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [modalStep, setModalStep] = useState(0);
   const [bankSearch, setBankSearch] = useState('');
@@ -77,7 +76,6 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    setError('');
     setSubmitting(true);
     try {
       const res = await fetch(`${API}/api/merchant-devices`, {
@@ -86,7 +84,7 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ошибка');
+      if (!res.ok) return;
       setDevices(prev => [...prev, data]);
       setShowModal(false);
       setEditDeviceId(null);
@@ -94,8 +92,8 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
       setModalStep(0);
       setBankSearch('');
       onDeviceAdded?.();
-    } catch (err) {
-      setError(err.message || 'Ошибка добавления');
+    } catch {
+      // silent
     } finally {
       setSubmitting(false);
     }
@@ -138,7 +136,6 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
   const handleEdit = async (e) => {
     e.preventDefault();
     if (!editDeviceId) return;
-    setError('');
     setSubmitting(true);
     try {
       const res = await fetch(`${API}/api/merchant-devices/${editDeviceId}`, {
@@ -147,7 +144,7 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ошибка');
+      if (!res.ok) return;
       setDevices(prev => prev.map(d => d.id === editDeviceId ? data : d));
       setShowModal(false);
       setEditDeviceId(null);
@@ -155,8 +152,8 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
       setModalStep(0);
       setBankSearch('');
       onDeviceAdded?.();
-    } catch (err) {
-      setError(err.message || 'Ошибка сохранения');
+    } catch {
+      // silent
     } finally {
       setSubmitting(false);
     }
@@ -172,7 +169,6 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
       maxTurnoverPerDay: device.maxTurnoverPerDay ?? '',
       maxTurnoverTotal: device.maxTurnoverTotal ?? '',
     });
-    setError('');
     setModalStep(0);
     setBankSearch('');
     setBankDropdownOpen(false);
@@ -188,7 +184,6 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
       maxTurnoverPerDay: '',
       maxTurnoverTotal: '',
     });
-    setError('');
     setEditDeviceId(null);
     setModalStep(0);
     setBankSearch('');
@@ -469,7 +464,6 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
                     ))}
                   </select>
                 </div>
-                {error && <div style={{ color: 'var(--error)', fontSize: '0.85rem' }}>{error}</div>}
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                   <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '0.75rem', background: 'var(--bg-card-hover)', border: '1px solid var(--border-light)', borderRadius: '10px', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}>Отмена</button>
                   <button type="submit" disabled={!form.requisites.trim() || !form.bank || !form.limitRange} style={{ flex: 1, padding: '0.75rem', background: (!form.requisites.trim() || !form.bank || !form.limitRange) ? 'var(--bg-card-hover)' : 'var(--accent)', color: (!form.requisites.trim() || !form.bank || !form.limitRange) ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '10px', fontWeight: 600, cursor: (!form.requisites.trim() || !form.bank || !form.limitRange) ? 'not-allowed' : 'pointer' }}>Далее</button>
@@ -482,7 +476,6 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
                 <div style={{ fontSize: '0.95rem', color: 'var(--text)' }}>
                   Вы выбрали основным банк <strong>{form.bank || 'нет'}</strong> для платежей при переводе
                 </div>
-                {error && <div style={{ color: 'var(--error)', fontSize: '0.85rem' }}>{error}</div>}
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                   <button type="button" onClick={() => setModalStep(0)} style={{ flex: 1, padding: '0.75rem', background: 'var(--bg-card-hover)', border: '1px solid var(--border-light)', borderRadius: '10px', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}>Назад</button>
                   <button type="button" onClick={() => setModalStep(2)} style={{ flex: 1, padding: '0.75rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 600, cursor: 'pointer' }}>Далее</button>
@@ -514,7 +507,6 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
                     style={{ width: '100%', padding: '0.75rem 1rem', background: 'var(--bg-card-hover)', border: '1px solid var(--border-light)', borderRadius: '8px', color: 'var(--text)', fontSize: '0.95rem' }}
                   />
                 </div>
-                {error && <div style={{ color: 'var(--error)', fontSize: '0.85rem' }}>{error}</div>}
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                   <button type="button" onClick={() => setModalStep(1)} disabled={submitting} style={{ flex: 1, padding: '0.75rem', background: 'var(--bg-card-hover)', border: '1px solid var(--border-light)', borderRadius: '10px', color: 'var(--text)', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}>Назад</button>
                   <button type="submit" disabled={submitting} style={{ flex: 1, padding: '0.75rem', background: submitting ? 'var(--bg-card-hover)' : 'var(--accent)', color: submitting ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '10px', fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}>{submitting ? (editDeviceId ? 'Сохранение...' : 'Добавление...') : (editDeviceId ? 'Сохранить' : 'Добавить')}</button>

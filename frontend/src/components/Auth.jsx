@@ -14,38 +14,20 @@ function Auth({ onLogin, referralCode: initialReferralCode }) {
     telegram: '',
     role: 'merchant',
   });
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const blockCopy = (e) => e.preventDefault();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
 
     const email = formData.email.trim();
     const password = formData.password;
     const name = formData.name.trim();
     const telegram = formData.telegram.trim();
 
-    if (!email) {
-      setError('Укажите email');
-      return;
-    }
-    if (!password) {
-      setError('Укажите пароль');
-      return;
-    }
-    if (!isLogin) {
-      if (!name) {
-        setError('Укажите ник');
-        return;
-      }
-      if (!telegram) {
-        setError('Укажите Telegram');
-        return;
-      }
-    }
+    if (!email || !password) return;
+    if (!isLogin && (!name || !telegram)) return;
 
     setLoading(true);
 
@@ -83,11 +65,9 @@ function Auth({ onLogin, referralCode: initialReferralCode }) {
         localStorage.setItem('enterPayToken', data.token);
         localStorage.setItem('enterPayUser', JSON.stringify(userData));
         onLogin(userData, data.token, { justRegistered: !isLogin });
-      } else {
-        setError(data.error || 'Ошибка авторизации');
       }
-    } catch (err) {
-      setError('Ошибка подключения к серверу');
+    } catch {
+      // silent
     } finally {
       setLoading(false);
     }
@@ -143,10 +123,7 @@ function Auth({ onLogin, referralCode: initialReferralCode }) {
           }}
         >
           <button
-            onClick={() => {
-              setIsLogin(true);
-              setError('');
-            }}
+            onClick={() => setIsLogin(true)}
             style={{
               flex: 1,
               padding: '0.875rem 1.25rem',
@@ -164,10 +141,7 @@ function Auth({ onLogin, referralCode: initialReferralCode }) {
             Вход
           </button>
           <button
-            onClick={() => {
-              setIsLogin(false);
-              setError('');
-            }}
+            onClick={() => setIsLogin(false)}
             style={{
               flex: 1,
               padding: '0.875rem 1.25rem',
@@ -185,24 +159,6 @@ function Auth({ onLogin, referralCode: initialReferralCode }) {
             Регистрация
           </button>
         </div>
-
-        {error && (
-          <div
-            style={{
-              padding: '1rem',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              borderRadius: '8px',
-              color: 'var(--error)',
-              fontSize: '0.875rem',
-              marginBottom: '1.5rem',
-              textAlign: 'center',
-              fontWeight: 500,
-            }}
-          >
-            {error}
-          </div>
-        )}
 
         <form
           onSubmit={handleSubmit}

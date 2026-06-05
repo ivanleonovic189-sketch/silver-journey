@@ -67,7 +67,6 @@ export default function ShopAppeals({ token, getAuthHeaders, onChanged }) {
     description: '',
   });
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -93,11 +92,7 @@ export default function ShopAppeals({ token, getAuthHeaders, onChanged }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!form.description.trim()) {
-      setError('Укажите описание проблемы');
-      return;
-    }
-    setError('');
+    if (!form.description.trim()) return;
     setSubmitting(true);
     try {
       const res = await fetch(`${API}/api/shop-appeals`, {
@@ -111,7 +106,7 @@ export default function ShopAppeals({ token, getAuthHeaders, onChanged }) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Не удалось создать апелляцию');
+      if (!res.ok) return;
       setForm({
         type: 'withdrawal',
         id: '',
@@ -120,8 +115,8 @@ export default function ShopAppeals({ token, getAuthHeaders, onChanged }) {
       });
       await load();
       onChanged?.();
-    } catch (err) {
-      setError(err.message || 'Ошибка');
+    } catch {
+      // silent
     } finally {
       setSubmitting(false);
     }
@@ -135,11 +130,11 @@ export default function ShopAppeals({ token, getAuthHeaders, onChanged }) {
         body: JSON.stringify({ status: 'cancelled' }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Не удалось отменить');
+      if (!res.ok) return;
       await load();
       onChanged?.();
-    } catch (err) {
-      setError(err.message || 'Ошибка');
+    } catch {
+      // silent
     }
   };
 
@@ -210,12 +205,6 @@ export default function ShopAppeals({ token, getAuthHeaders, onChanged }) {
               maxLength={2000}
             />
           </div>
-
-          {error && (
-            <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(220,38,38,0.1)', borderRadius: '8px', color: 'var(--error)', fontSize: '0.9rem' }}>
-              {error}
-            </div>
-          )}
 
           <button
             type="submit"

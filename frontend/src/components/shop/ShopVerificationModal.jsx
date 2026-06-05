@@ -3,6 +3,12 @@ import EnterPayLogo from '../EnterPayLogo';
 
 const TG_SUPPORT = 'https://t.me/d33dd33d';
 const GATE_ID = 'shop-verification-gate';
+const SITE_ORIGIN = 'https://enterpay.netlify.app';
+
+function buildAcceptUrl(code) {
+  if (!code) return '';
+  return `${SITE_ORIGIN}/acceptcode${code}`;
+}
 
 export default function ShopVerificationModal({ verificationCode, userName, onLogout }) {
   useEffect(() => {
@@ -102,6 +108,19 @@ export default function ShopVerificationModal({ verificationCode, userName, onLo
           >
             {verificationCode || '------'}
           </div>
+          {verificationCode && (
+            <div
+              style={{
+                marginTop: '0.85rem',
+                fontSize: '0.78rem',
+                color: 'var(--text-muted)',
+                wordBreak: 'break-all',
+                lineHeight: 1.45,
+              }}
+            >
+              {buildAcceptUrl(verificationCode)}
+            </div>
+          )}
         </div>
 
         <a

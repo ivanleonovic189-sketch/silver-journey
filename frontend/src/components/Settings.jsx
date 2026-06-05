@@ -118,7 +118,6 @@ function Toggle({ checked, onChange, label, hint }) {
 export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
   const [profile, setProfile] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -134,7 +133,6 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
   const loadSettings = useCallback(async () => {
     if (!token) return;
     setLoadFailed(false);
-    setError('');
     try {
       const headers = {
         Authorization: `Bearer ${token}`,
@@ -143,7 +141,7 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
       const res = await fetch(`${API}/api/settings`, { headers });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.error || `Не удалось загрузить настройки (${res.status})`);
+        throw new Error('load failed');
       }
       setProfile(data.profile || {});
       setSettings({ ...DEFAULT_SETTINGS, ...(data.settings || {}) });
@@ -151,7 +149,6 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
     } catch (e) {
       console.error(e);
       setLoadFailed(true);
-      setError(e.message || 'Не удалось загрузить настройки');
     }
   }, [token]);
 
@@ -165,7 +162,6 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
 
   const save = async () => {
     setSaving(true);
-    setError('');
     setMessage('');
     try {
       const res = await fetch(`${API}/api/settings`, {
@@ -174,14 +170,14 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
         body: JSON.stringify({ settings, profile: { name: profile.name, telegram: profile.telegram } }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ошибка сохранения');
+      if (!res.ok) throw new Error('save failed');
       setProfile(data.profile);
       setSettings(data.settings);
       setMessage('Настройки сохранены');
       onUserUpdate?.(data.profile);
       setTimeout(() => setMessage(''), 3000);
-    } catch (e) {
-      setError(e.message || 'Ошибка сохранения');
+    } catch {
+      // silent
     } finally {
       setSaving(false);
     }
@@ -214,30 +210,25 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
           {message}
         </div>
       )}
-      {error && (
-        <div style={{ padding: '0.75rem 1rem', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid var(--error)', borderRadius: '8px', color: 'var(--error)', marginBottom: '1rem', fontSize: '0.9rem' }}>
-          {error}
-          {loadFailed && (
+      {loadFailed && (
             <button
               type="button"
               onClick={loadSettings}
               style={{
                 display: 'block',
-                marginTop: '0.5rem',
+                marginBottom: '1rem',
                 padding: '0.4rem 0.75rem',
                 background: 'transparent',
-                border: '1px solid var(--error)',
+                border: '1px solid var(--border-light)',
                 borderRadius: '6px',
-                color: 'var(--error)',
+                color: 'var(--text-muted)',
                 cursor: 'pointer',
                 fontSize: '0.85rem',
               }}
             >
-              Повторить
+              Повторить загрузку
             </button>
           )}
-        </div>
-      )}
 
       <Section title="Профиль">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

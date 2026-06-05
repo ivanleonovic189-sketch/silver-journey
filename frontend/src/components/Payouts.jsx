@@ -18,7 +18,6 @@ export default function Payouts({
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showRequisites, setShowRequisites] = useState(false);
   const [receiptFile, setReceiptFile] = useState(null);
-  const [receiptError, setReceiptError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -85,14 +84,12 @@ export default function Payouts({
 
   const handleFileChange = (e) => {
     const f = e.target.files?.[0];
-    setReceiptError('');
     if (!f) {
       setReceiptFile(null);
       return;
     }
     const allowed = ['application/pdf', 'image/jpeg', 'image/jpg'];
     if (!allowed.includes(f.type)) {
-      setReceiptError('Загрузите PDF, JPG или JPEG');
       setReceiptFile(null);
       return;
     }
@@ -101,7 +98,6 @@ export default function Payouts({
 
   const handleComplete = async () => {
     if (!receiptFile || !selectedRequest || !onComplete) return;
-    setReceiptError('');
     setSubmitting(true);
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -295,8 +291,6 @@ export default function Payouts({
                 <span style={{ color: 'var(--text-muted)' }}>Выберите файл</span>
               )}
             </label>
-            {receiptError && <div style={{ color: 'var(--error)', fontSize: '0.85rem', marginBottom: '1rem' }}>{receiptError}</div>}
-
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
               <button
                 onClick={handleComplete}

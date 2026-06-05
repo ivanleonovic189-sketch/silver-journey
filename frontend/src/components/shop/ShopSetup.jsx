@@ -38,7 +38,6 @@ export default function ShopSetup({ user, getAuthHeaders, onComplete, onUserUpda
   const [telegram, setTelegram] = useState(user?.telegram || '');
   const [methods, setMethods] = useState([]);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     const html = document.documentElement;
@@ -69,7 +68,6 @@ export default function ShopSetup({ user, getAuthHeaders, onComplete, onUserUpda
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canSubmit) return;
-    setError('');
 
     const name = shopName.trim();
     setSaving(true);
@@ -88,14 +86,12 @@ export default function ShopSetup({ user, getAuthHeaders, onComplete, onUserUpda
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Не удалось сохранить настройки');
-      if (data.settings?.shopSetupComplete !== true) {
-        throw new Error('Не удалось завершить настройку. Проверьте все поля и попробуйте снова.');
-      }
+      if (!res.ok) return;
+      if (data.settings?.shopSetupComplete !== true) return;
       onUserUpdate?.(data.profile);
       onComplete?.(data.settings);
-    } catch (err) {
-      setError(err.message || 'Ошибка сохранения');
+    } catch {
+      // silent
     } finally {
       setSaving(false);
     }
@@ -204,22 +200,6 @@ export default function ShopSetup({ user, getAuthHeaders, onComplete, onUserUpda
               })}
             </div>
           </div>
-
-          {error && (
-            <div
-              style={{
-                padding: '0.75rem 1rem',
-                background: 'rgba(220, 38, 38, 0.1)',
-                border: '1px solid var(--error)',
-                borderRadius: '8px',
-                color: 'var(--error)',
-                marginBottom: '1rem',
-                fontSize: '0.9rem',
-              }}
-            >
-              {error}
-            </div>
-          )}
 
           <button
             type="submit"

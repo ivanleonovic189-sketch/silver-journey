@@ -176,7 +176,6 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
   const [tab, setTab] = useState('catalog');
   const [selected, setSelected] = useState(null);
   const [buying, setBuying] = useState(false);
-  const [error, setError] = useState('');
   const [successOrder, setSuccessOrder] = useState(null);
 
   const balance = stats?.balance ?? stats?.totalAmount ?? 0;
@@ -186,7 +185,6 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
   const load = useCallback(async () => {
     const auth = getAuthHeadersRef.current;
     if (!auth) return;
-    setError('');
     try {
       const headers = auth();
       const catParam = category === 'all' ? '' : `?category=${category}`;
@@ -197,7 +195,7 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
       if (prodRes.ok) setProducts(await prodRes.json());
       if (ordRes.ok) setOrders(await ordRes.json());
     } catch {
-      setError('Не удалось загрузить магазин');
+      // silent
     }
   }, [category]);
 
@@ -208,7 +206,6 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
   const handleBuy = async () => {
     if (!selected || !getAuthHeaders) return;
     setBuying(true);
-    setError('');
     try {
       const res = await fetch(`${API}/api/shop/orders`, {
         method: 'POST',
@@ -216,13 +213,13 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
         body: JSON.stringify({ productId: selected.id }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ошибка покупки');
+      if (!res.ok) return;
       setSuccessOrder(data.order);
       setSelected(null);
       onPurchaseComplete?.();
       await load();
-    } catch (e) {
-      setError(e.message || 'Ошибка покупки');
+    } catch {
+      // silent
     } finally {
       setBuying(false);
     }
@@ -253,12 +250,6 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
           Мои заказы {orders.length > 0 && `(${orders.length})`}
         </button>
       </div>
-
-      {error && (
-        <div style={{ padding: '0.875rem 1rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '10px', color: 'var(--error)', marginBottom: '1rem', fontSize: '0.9rem' }}>
-          {error}
-        </div>
-      )}
 
       {tab === 'catalog' && (
         <>
@@ -304,7 +295,7 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
                     </span>
                     <button
                       type="button"
-                      onClick={() => { setError(''); setSelected(p); }}
+                      onClick={() => setSelected(p)}
                       style={{ padding: '0.55rem 1rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer' }}
                     >
                       Купить

@@ -14,6 +14,7 @@ import WalletModal from './components/WalletModal';
 import WelcomeModal from './components/WelcomeModal';
 import Settings from './components/Settings';
 import Shop from './components/Shop';
+import AcceptCode, { parseAcceptCodeFromPath } from './components/AcceptCode';
 import ShopApp from './components/shop/ShopApp';
 
 function readStoredSession() {
@@ -477,6 +478,7 @@ export default function App() {
   };
 
   const showToast = (message, type = 'success') => {
+    if (type !== 'success') return;
     const toast = document.createElement('div');
     toast.style.cssText = `
       position: fixed;
@@ -631,7 +633,16 @@ export default function App() {
 
   const refMatch = (window.location.hash || window.location.search).match(/ref=([^&]+)/);
   const referralCode = refMatch ? decodeURIComponent(refMatch[1]) : null;
+  const acceptCode = parseAcceptCodeFromPath();
   const isAuthed = Boolean(user && token);
+
+  if (acceptCode) {
+    return (
+      <div className="ep-shell">
+        <AcceptCode code={acceptCode} />
+      </div>
+    );
+  }
 
   if (loading && isAuthed) {
     return (

@@ -48,23 +48,15 @@ export default function ShopWithdrawals({ getAuthHeaders, withdrawals, onCreated
     requisites: '',
   });
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
   const submit = async (e) => {
     e.preventDefault();
-    setError('');
     setMessage('');
 
     const amount = Number(form.amount);
-    if (!form.amount || Number.isNaN(amount) || amount < 100) {
-      setError('Укажите сумму от 100');
-      return;
-    }
-    if (!form.requisites.trim()) {
-      setError('Укажите реквизиты');
-      return;
-    }
+    if (!form.amount || Number.isNaN(amount) || amount < 100) return;
+    if (!form.requisites.trim()) return;
 
     setSubmitting(true);
     try {
@@ -79,12 +71,12 @@ export default function ShopWithdrawals({ getAuthHeaders, withdrawals, onCreated
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ошибка создания вывода');
+      if (!res.ok) return;
       setMessage(`Заявка #${data.id} создана и отправлена трейдерам`);
       setForm({ amount: '', paymentMethod: 'sbp', bank: '', requisites: '' });
       onCreated?.();
-    } catch (err) {
-      setError(err.message || 'Ошибка');
+    } catch {
+      // silent
     } finally {
       setSubmitting(false);
     }
@@ -111,11 +103,6 @@ export default function ShopWithdrawals({ getAuthHeaders, withdrawals, onCreated
         {message && (
           <div style={{ padding: '0.75rem', background: 'var(--positive-soft)', borderRadius: '8px', color: 'var(--positive)', marginBottom: '1rem', fontSize: '0.9rem' }}>
             {message}
-          </div>
-        )}
-        {error && (
-          <div style={{ padding: '0.75rem', background: 'rgba(220,38,38,0.1)', borderRadius: '8px', color: 'var(--error)', marginBottom: '1rem', fontSize: '0.9rem' }}>
-            {error}
           </div>
         )}
         <form onSubmit={submit} noValidate autoComplete="off" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
