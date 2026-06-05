@@ -139,22 +139,6 @@ app.post('/api/auth/register', async (req, res) => {
   
   db.users.push(user);
   
-  if (role === 'merchant') {
-    initMerchants(db);
-    const existingMerchant = db.merchants.find(m => String(m.userId) === String(user.id));
-    if (!existingMerchant) {
-      db.merchants.push({
-        id: nextId(db.merchants),
-        name: `${name} (мерчант)`,
-        apiKey: 'merchant_' + crypto.randomBytes(16).toString('hex'),
-        balance: 0,
-        enabled: true,
-        userId: user.id,
-        createdAt: new Date().toISOString(),
-      });
-    }
-  }
-  
   saveDb(db);
 
   const { password: _, ...userPublic } = user;
@@ -306,6 +290,28 @@ app.patch('/api/settings', requireAuth, (req, res) => {
   if (profile && typeof profile === 'object') {
     if (profile.name != null) u.name = String(profile.name).trim().slice(0, 80);
     if (profile.telegram != null) u.telegram = String(profile.telegram).trim().slice(0, 64);
+    if (profile.role != null) {
+      const newRole = String(profile.role);
+      if (newRole !== 'merchant' && newRole !== 'shop') {
+        return res.status(400).json({ error: 'Роль должна быть "merchant" или "shop"' });
+      }
+      u.role = newRole;
+      if (newRole === 'merchant') {
+        initMerchants(db);
+        const existingMerchant = db.merchants.find(m => String(m.userId) === String(u.id));
+        if (!existingMerchant) {
+          db.merchants.push({
+            id: nextId(db.merchants),
+            name: `${u.name || 'Пользователь'} (мерчант)`,
+            apiKey: 'merchant_' + crypto.randomBytes(16).toString('hex'),
+            balance: 0,
+            enabled: true,
+            userId: u.id,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
   }
 
   if (settings && typeof settings === 'object') {

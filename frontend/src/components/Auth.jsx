@@ -11,7 +11,6 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
     password: '',
     name: '',
     telegram: '',
-    role: 'merchant',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,7 +29,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
             password: formData.password,
             name: formData.name,
             telegram: formData.telegram,
-            role: formData.role,
+            role: 'merchant',
             ...(referralCode && { referralCode }),
           };
 
@@ -200,7 +199,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
                     fontWeight: 500,
                   }}
                 >
-                  Имя
+                  Ник
                 </label>
                 <input
                   type="text"
@@ -218,7 +217,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
                     transition: 'all 0.15s',
                     outline: 'none',
                   }}
-                  placeholder="Ваше имя"
+                  placeholder="Ваш ник"
                   onFocus={(e) => {
                     e.target.style.borderColor = 'var(--accent)';
                     e.target.style.background = 'var(--bg-card)';
@@ -271,58 +270,6 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
                     e.target.style.background = 'var(--bg-card-hover)';
                   }}
                 />
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.875rem',
-                    color: 'var(--text-muted)',
-                    marginBottom: '0.5rem',
-                    fontWeight: 500,
-                  }}
-                >
-                  Роль
-                </label>
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '0.75rem',
-                  }}
-                >
-                  {[
-                    { value: 'merchant', label: 'Мерчант' },
-                    { value: 'shop', label: 'Магазин', disabled: true },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      disabled={option.disabled}
-                      onClick={() => {
-                        if (!option.disabled) {
-                          setFormData({ ...formData, role: option.value });
-                        }
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '0.875rem 1rem',
-                        background: formData.role === option.value ? 'var(--bg-card)' : 'var(--bg-card-hover)',
-                        border: formData.role === option.value ? '1px solid var(--accent)' : '1px solid var(--border-light)',
-                        borderRadius: '8px',
-                        color: option.disabled ? 'var(--text-light)' : formData.role === option.value ? 'var(--text)' : 'var(--text-muted)',
-                        fontWeight: formData.role === option.value ? 600 : 400,
-                        cursor: option.disabled ? 'not-allowed' : 'pointer',
-                        fontSize: '0.95rem',
-                        transition: 'all 0.15s',
-                        boxShadow: formData.role === option.value ? '0 1px 3px rgba(0, 0, 0, 0.05)' : 'none',
-                        opacity: option.disabled ? 0.55 : 1,
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
               </div>
             </>
           )}

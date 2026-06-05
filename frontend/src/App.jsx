@@ -1746,6 +1746,14 @@ export default function App() {
       {showWelcomeModal && (
         <WelcomeModal
           userName={user?.name}
+          userRole={user?.role}
+          getAuthHeaders={getAuthHeaders}
+          onSaved={(profile) => {
+            const updated = { ...user, ...profile };
+            setUser(updated);
+            localStorage.setItem('enterPayUser', JSON.stringify(updated));
+            setShowWelcomeModal(false);
+          }}
           onClose={() => setShowWelcomeModal(false)}
         />
       )}
