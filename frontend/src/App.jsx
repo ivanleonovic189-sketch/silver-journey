@@ -67,6 +67,12 @@ export default function App() {
       if (validTabs.includes(hash)) setActiveTabState(hash);
     };
     window.addEventListener('hashchange', onHashChange);
+    const params = new URLSearchParams(window.location.search);
+    const tabFromQuery = params.get('tab');
+    if (tabFromQuery && validTabs.includes(tabFromQuery)) {
+      setActiveTabState(tabFromQuery);
+      window.location.hash = tabFromQuery;
+    }
     const h = window.location.hash.slice(1);
     if (h === 'ref') {
       setShowRefModal(true);
@@ -723,6 +729,7 @@ export default function App() {
             {activeTab === 'settings' && (
               <Settings
                 user={user}
+                token={token}
                 getAuthHeaders={getAuthHeaders}
                 onUserUpdate={(profile) => {
                   if (profile) {

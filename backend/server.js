@@ -5,6 +5,14 @@ const fs = require('fs');
 const path = require('path');
 const { initDb, getDb, saveDb, saveDbAsync, nextId, ensureDbReady } = require('./db');
 const { createAuthToken, parseAuthToken } = require('./auth-token');
+const { hasTelegramBot, getBotUsername } = require('./telegram');
+const { handleUpdate, createLinkCodeForUser } = require('./telegram-bot');
+const {
+  notifyNewPayout,
+  notifyPayoutAccepted,
+  notifyPayoutCompleted,
+  notifyAppeal,
+} = require('./telegram-notify');
 
 const envPath = path.join(__dirname, '.env');
 if (fs.existsSync(envPath)) {
@@ -57,7 +65,28 @@ if (process.env.NETLIFY) {
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'enter-pay-api' });
+  res.json({ ok: true, service: 'enter-pay-api', telegram: hasTelegramBot() });
+});
+
+// ========== TELEGRAM BOT ==========
+
+app.post('/api/telegram/webhook', async (req, res) => {
+  try {
+    if (!hasTelegramBot()) {
+      return res.status(503).json({ error: 'Telegram bot не настроен' });
+    }
+    const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (secret) {
+      const hdr = req.headers['x-telegram-bot-api-secret-token'];
+      if (hdr !== secret) return res.status(403).json({ error: 'Forbidden' });
+    }
+    await ensureDbReady();
+    await handleUpdate(req.body || {}, { getDb, saveDb });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Telegram webhook error:', err);
+    res.status(500).json({ error: 'Webhook error' });
+  }
 });
 
 initDb();
@@ -111,6 +140,10 @@ function requireAuth(req, res, next) {
 
   req.user = user;
   next();
+}
+
+function findDbUser(db, userId) {
+  return (db.users || []).find((us) => String(us.id) === String(userId));
 }
 
 // Регистрация
@@ -291,30 +324,36 @@ const DEFAULT_PUBLISHER_SETTINGS = {
 app.get('/api/settings', requireAuth, (req, res) => {
   const db = getDb();
   initMerchants(db);
-  const u = db.users.find(us => us.id === req.user.id);
-  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
+  const u = findDbUser(db, req.user.id) || req.user;
   const merchant = (db.merchants || []).find(m => String(m.userId) === String(u.id));
   const settings = { ...DEFAULT_PUBLISHER_SETTINGS, ...(u.settings || {}) };
-  const { password: _, ...userPublic } = u;
   res.json({
     settings,
     profile: {
-      id: userPublic.id,
-      name: userPublic.name,
-      email: userPublic.email,
-      telegram: userPublic.telegram,
-      role: userPublic.role,
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      telegram: u.telegram,
+      role: u.role,
     },
     integration: merchant
       ? { merchantId: merchant.id, apiKey: merchant.apiKey, enabled: merchant.enabled !== false }
       : null,
+    telegram: {
+      configured: hasTelegramBot(),
+      linked: Boolean(u.telegramChatId),
+      linkedAt: u.telegramLinkedAt || null,
+      botUrl: `https://t.me/${getBotUsername()}`,
+    },
   });
 });
 
 app.patch('/api/settings', requireAuth, (req, res) => {
   const db = getDb();
-  const u = db.users.find(us => us.id === req.user.id);
-  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
+  let u = findDbUser(db, req.user.id);
+  if (!u) {
+    return res.status(404).json({ error: 'Пользователь не найден. Выйдите и войдите снова.' });
+  }
 
   const { settings, profile } = req.body || {};
 
@@ -352,6 +391,45 @@ app.patch('/api/settings', requireAuth, (req, res) => {
       role: userPublic.role,
     },
   });
+});
+
+app.get('/api/telegram/status', requireAuth, (req, res) => {
+  const db = getDb();
+  const u = db.users.find((us) => us.id === req.user.id);
+  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
+  res.json({
+    configured: hasTelegramBot(),
+    linked: Boolean(u.telegramChatId),
+    linkedAt: u.telegramLinkedAt || null,
+    botUrl: `https://t.me/${getBotUsername()}`,
+  });
+});
+
+app.post('/api/telegram/link-code', requireAuth, (req, res) => {
+  const db = getDb();
+  const u = db.users.find((us) => us.id === req.user.id);
+  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
+  if (!hasTelegramBot()) return res.status(503).json({ error: 'Telegram bot не настроен' });
+  const code = createLinkCodeForUser(u);
+  saveDb(db);
+  const deepLink = `https://t.me/${getBotUsername()}?start=link_${code}`;
+  res.json({
+    code,
+    expiresAt: u.telegramLinkCodeExpires,
+    botUrl: deepLink,
+  });
+});
+
+app.post('/api/telegram/unlink', requireAuth, (req, res) => {
+  const db = getDb();
+  const u = db.users.find((us) => us.id === req.user.id);
+  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
+  u.telegramChatId = null;
+  u.telegramLinkedAt = null;
+  u.telegramLinkCode = null;
+  u.telegramLinkCodeExpires = null;
+  saveDb(db);
+  res.json({ ok: true });
 });
 
 // ========== МЕРЧАНТЫ ==========
@@ -681,8 +759,15 @@ app.patch('/api/transactions/:id', requireAuth, (req, res) => {
     }
   }
   if (error) transaction.error = String(error);
-  
+
   saveDb(db);
+
+  if (status === 'failed' && oldStatus !== 'failed') {
+    const merchant = db.merchants.find((m) => String(m.id) === String(transaction.merchantId));
+    const owner = merchant ? db.users.find((u) => String(u.id) === String(merchant.userId)) : null;
+    if (owner) notifyAppeal(db, owner, transaction).catch((err) => console.error('TG appeal notify:', err));
+  }
+
   res.json(transaction);
 });
 
@@ -776,6 +861,36 @@ app.get('/api/payout-requests', requireAuth, (req, res) => {
   res.json(requests);
 });
 
+// Новая заявка на выплату (казино / API)
+app.post('/api/payout-requests', requireAuth, (req, res) => {
+  const db = getDb();
+  initPayoutRequests(db);
+  const { amount, paymentMethod, bank, requisites, currency } = req.body || {};
+  const amountNum = Number(amount);
+  if (!amountNum || amountNum < 100) {
+    return res.status(400).json({ error: 'Укажите сумму от 100 ₽' });
+  }
+  if (!paymentMethod || !['sbp', 'card_ru'].includes(paymentMethod)) {
+    return res.status(400).json({ error: 'paymentMethod: sbp или card_ru' });
+  }
+  if (!requisites) return res.status(400).json({ error: 'Укажите requisites' });
+
+  const request = {
+    id: nextId(db.payoutRequests),
+    amount: amountNum,
+    currency: currency || '₽',
+    paymentMethod,
+    bank: bank ? String(bank) : '',
+    requisites: String(requisites),
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  };
+  db.payoutRequests.push(request);
+  saveDb(db);
+  notifyNewPayout(db, request).catch((err) => console.error('TG new payout notify:', err));
+  res.status(201).json(request);
+});
+
 // Трейдер принимает заявку
 app.post('/api/payout-requests/:id/accept', requireAuth, (req, res) => {
   const db = getDb();
@@ -790,6 +905,7 @@ app.post('/api/payout-requests/:id/accept', requireAuth, (req, res) => {
   request.acceptedAt = new Date().toISOString();
   request.expiresAt = new Date(Date.now() + PAYOUT_TIME_LIMIT_MS).toISOString();
   saveDb(db);
+  notifyPayoutAccepted(db, req.user, request).catch((err) => console.error('TG accept notify:', err));
   res.json(request);
 });
 
@@ -868,6 +984,7 @@ app.patch('/api/payout-requests/:id/complete', requireAuth, (req, res) => {
   }
 
   saveDb(db);
+  notifyPayoutCompleted(db, req.user, request).catch((err) => console.error('TG complete notify:', err));
   res.json({ ...request, rewardAmount });
 });
 

@@ -1,5 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { API } from '../api';
+import { TG_BOT_URL } from '../config';
+
+const DEFAULT_SETTINGS = {
+  casinoSiteUrl: '',
+  landingPageUrl: '',
+  defaultSubId: '',
+  trackingSource: '',
+  trafficGeo: 'RU,CIS',
+  postbackUrl: '',
+  postbackDeposit: true,
+  postbackFirstDeposit: true,
+  postbackWithdraw: false,
+  postbackChargeback: true,
+  postbackSecret: '',
+  notifyTelegramDeposits: true,
+  notifyTelegramPayouts: true,
+  notifyTelegramAppeals: true,
+  notifyMinAmount: 1000,
+  apiIpWhitelist: '',
+  autoAcceptPayouts: false,
+  holdPeriodHours: 0,
+  revshareDisplay: true,
+};
 
 const inputStyle = {
   width: '100%',
@@ -92,37 +115,52 @@ function Toggle({ checked, onChange, label, hint }) {
   );
 }
 
-export default function Settings({ getAuthHeaders, user, onUserUpdate }) {
+export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [profile, setProfile] = useState({ name: '', email: '', telegram: '', role: '' });
-  const [settings, setSettings] = useState(null);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [integration, setIntegration] = useState(null);
+  const [telegram, setTelegram] = useState(null);
+  const [linkCode, setLinkCode] = useState(null);
+  const [linkLoading, setLinkLoading] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [copied, setCopied] = useState('');
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  const loadSettings = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    setLoadFailed(false);
+    setError('');
+    try {
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        'x-auth-token': token,
+      };
+      const res = await fetch(`${API}/api/settings`, { headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || `Не удалось загрузить настройки (${res.status})`);
+      }
+      setProfile(data.profile || {});
+      setSettings({ ...DEFAULT_SETTINGS, ...(data.settings || {}) });
+      setIntegration(data.integration || null);
+      setTelegram(data.telegram || null);
+    } catch (e) {
+      console.error(e);
+      setLoadFailed(true);
+      setError(e.message || 'Не удалось загрузить настройки');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
-    const load = async () => {
-      if (!getAuthHeaders) return;
-      try {
-        const res = await fetch(`${API}/api/settings`, { headers: getAuthHeaders() });
-        if (res.ok) {
-          const data = await res.json();
-          setProfile(data.profile || {});
-          setSettings(data.settings || {});
-          setIntegration(data.integration || null);
-        }
-      } catch (e) {
-        console.error(e);
-        setError('Не удалось загрузить настройки');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [getAuthHeaders]);
+    loadSettings();
+  }, [loadSettings]);
 
   const updateSetting = (key, value) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -159,8 +197,56 @@ export default function Settings({ getAuthHeaders, user, onUserUpdate }) {
     setTimeout(() => setCopied(''), 2000);
   };
 
-  if (loading || !settings) {
-    return null;
+  const generateLinkCode = async () => {
+    setLinkLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API}/api/telegram/link-code`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Не удалось получить код');
+      setLinkCode(data);
+    } catch (e) {
+      setError(e.message || 'Ошибка');
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  const unlinkTelegram = async () => {
+    setLinkLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API}/api/telegram/unlink`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка отвязки');
+      setTelegram((t) => ({ ...t, linked: false, linkedAt: null }));
+      setLinkCode(null);
+      setMessage('Telegram отвязан');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (e) {
+      setError(e.message || 'Ошибка отвязки');
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  const botUrl = telegram?.botUrl || linkCode?.botUrl || TG_BOT_URL;
+
+  if (loading) {
+    return (
+      <div style={{ maxWidth: '720px', margin: '0 auto', padding: '2rem 0' }}>
+        <h2 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text)', marginBottom: '0.5rem' }}>
+          Настройки
+        </h2>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Загрузка…</p>
+      </div>
+    );
   }
 
   const isShop = profile.role === 'shop';
@@ -186,6 +272,25 @@ export default function Settings({ getAuthHeaders, user, onUserUpdate }) {
       {error && (
         <div style={{ padding: '0.75rem 1rem', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid var(--error)', borderRadius: '8px', color: 'var(--error)', marginBottom: '1rem', fontSize: '0.9rem' }}>
           {error}
+          {loadFailed && (
+            <button
+              type="button"
+              onClick={loadSettings}
+              style={{
+                display: 'block',
+                marginTop: '0.5rem',
+                padding: '0.4rem 0.75rem',
+                background: 'transparent',
+                border: '1px solid var(--error)',
+                borderRadius: '6px',
+                color: 'var(--error)',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+              }}
+            >
+              Повторить
+            </button>
+          )}
         </div>
       )}
 
@@ -289,6 +394,147 @@ export default function Settings({ getAuthHeaders, user, onUserUpdate }) {
           </Section>
         </>
       )}
+
+      <Section
+        title="Telegram-бот"
+        description="Привяжите аккаунт для push-уведомлений и команд /balance, /stats, /payouts."
+      >
+        {!telegram?.configured ? (
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0 }}>
+            Бот не настроен на сервере (нет TELEGRAM_BOT_TOKEN).
+          </p>
+        ) : telegram.linked ? (
+          <div>
+            <div
+              style={{
+                padding: '0.75rem 1rem',
+                background: 'var(--positive-soft)',
+                border: '1px solid var(--positive)',
+                borderRadius: '8px',
+                color: 'var(--positive)',
+                fontSize: '0.9rem',
+                marginBottom: '1rem',
+              }}
+            >
+              Привязан
+              {telegram.linkedAt && (
+                <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
+                  с {new Date(telegram.linkedAt).toLocaleString('ru-RU')}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <a
+                href={botUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: '0.65rem 1.25rem',
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                }}
+              >
+                Открыть бота
+              </a>
+              <button
+                type="button"
+                onClick={unlinkTelegram}
+                disabled={linkLoading}
+                style={{
+                  padding: '0.65rem 1.25rem',
+                  background: 'transparent',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: '8px',
+                  color: 'var(--text-muted)',
+                  cursor: linkLoading ? 'not-allowed' : 'pointer',
+                  fontSize: '0.9rem',
+                }}
+              >
+                Отвязать
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+              1. Получите код → 2. Откройте бота → 3. Отправьте /link КОД или нажмите ссылку с кодом.
+            </p>
+            {!linkCode ? (
+              <button
+                type="button"
+                onClick={generateLinkCode}
+                disabled={linkLoading}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: linkLoading ? 'var(--bg-card-hover)' : 'var(--accent)',
+                  color: linkLoading ? 'var(--text-muted)' : '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  cursor: linkLoading ? 'not-allowed' : 'pointer',
+                  fontSize: '0.9rem',
+                }}
+              >
+                {linkLoading ? 'Генерация...' : 'Получить код привязки'}
+              </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div>
+                  <label style={labelStyle}>Код (15 мин)</label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input style={{ ...inputStyle, fontFamily: 'monospace', letterSpacing: '0.15em' }} readOnly value={linkCode.code} />
+                    <button
+                      type="button"
+                      onClick={() => copyText(linkCode.code, 'tgcode')}
+                      style={{ padding: '0.75rem 1rem', background: 'var(--bg-card-hover)', border: '1px solid var(--border-light)', borderRadius: '8px', color: 'var(--text)', cursor: 'pointer', fontSize: '0.85rem' }}
+                    >
+                      {copied === 'tgcode' ? 'OK' : 'Копировать'}
+                    </button>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <a
+                    href={linkCode.botUrl || botUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      padding: '0.65rem 1.25rem',
+                      background: 'var(--accent)',
+                      color: '#fff',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Открыть бота с кодом
+                  </a>
+                  <button
+                    type="button"
+                    onClick={generateLinkCode}
+                    disabled={linkLoading}
+                    style={{
+                      padding: '0.65rem 1.25rem',
+                      background: 'transparent',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '8px',
+                      color: 'var(--text)',
+                      cursor: linkLoading ? 'not-allowed' : 'pointer',
+                      fontSize: '0.9rem',
+                    }}
+                  >
+                    Новый код
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Section>
 
       <Section
         title="Уведомления в Telegram"

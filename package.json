@@ -6,6 +6,8 @@
     "dev": "concurrently -k -n api,web -c blue,green \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "node backend/server.js",
     "dev:frontend": "cd frontend && npm run dev",
+    "bot:poll": "node backend/telegram-poll.js",
+    "bot:webhook": "node backend/set-webhook.js",
     "install:all": "npm install && cd frontend && npm install"
   },
   "dependencies": {
