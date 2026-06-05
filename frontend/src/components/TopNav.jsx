@@ -18,6 +18,7 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
     { id: 'payouts', label: 'Выплаты', icon: null },
     { id: 'history', label: 'История', icon: null },
     { id: 'devices', label: 'Устройства', icon: null },
+    { id: 'shop', label: 'Магазин', icon: null },
   ];
 
   // Закрываем dropdown при клике вне его

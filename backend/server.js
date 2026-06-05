@@ -1055,6 +1055,213 @@ app.get('/api/stats', requireAuth, (req, res) => {
   res.json(stats);
 });
 
+// ========== МАГАЗИН (P2P для питупишеров) ==========
+
+function initShopProducts(db) {
+  if (!Array.isArray(db.shopProducts)) db.shopProducts = [];
+  if (db.shopProducts.length > 0) return;
+
+  db.shopProducts = [
+    {
+      id: 1,
+      title: 'Мануал: Старт в P2P для казино',
+      description: 'Пошаговый гайд: подключение к Enter Pay, настройка устройств, первые выплаты и типичные ошибки новичков.',
+      category: 'manuals',
+      price: 4990,
+      currency: '₽',
+      badge: 'Старт',
+      delivery: 'PDF + Telegram',
+      enabled: true,
+    },
+    {
+      id: 2,
+      title: 'Мануал: Anti-fraud и безопасность',
+      description: 'Как не словить блок, работа с лимитами, страховой депозит, апелляции и общение с риск-отделом.',
+      category: 'manuals',
+      price: 7990,
+      currency: '₽',
+      badge: null,
+      delivery: 'PDF + Telegram',
+      enabled: true,
+    },
+    {
+      id: 3,
+      title: 'Мануал: Масштабирование команды',
+      description: 'Найм трейдеров, распределение трафика, контроль конверсии и вывод команды на стабильный объём.',
+      category: 'manuals',
+      price: 12990,
+      currency: '₽',
+      badge: 'Pro',
+      delivery: 'PDF + Telegram',
+      enabled: true,
+    },
+    {
+      id: 4,
+      title: 'ЛК Сбербанк (физлицо)',
+      description: 'Личный кабинет Сбербанка под P2P: регистрация, СБП, лимиты. Проверенный аккаунт, сопровождение 30 дней.',
+      category: 'bank_lk',
+      price: 18000,
+      currency: '₽',
+      badge: 'Хит',
+      delivery: 'Telegram',
+      enabled: true,
+    },
+    {
+      id: 5,
+      title: 'ЛК Т-Банк (физлицо)',
+      description: 'Готовый личный кабинет Т-Банка для приёма и отправки. Подходит под средний и высокий чек.',
+      category: 'bank_lk',
+      price: 15000,
+      currency: '₽',
+      badge: null,
+      delivery: 'Telegram',
+      enabled: true,
+    },
+    {
+      id: 6,
+      title: 'ЛК ВТБ + СБП',
+      description: 'Комплект: личный кабинет ВТБ с подключённым СБП. Быстрый старт для нового трейдера.',
+      category: 'bank_lk',
+      price: 14500,
+      currency: '₽',
+      badge: null,
+      delivery: 'Telegram',
+      enabled: true,
+    },
+    {
+      id: 7,
+      title: 'Пакет: 5 ЛК под трафик',
+      description: 'Набор из 5 личных кабинетов разных банков под ваш объём. Скидка против покупки по одному.',
+      category: 'packs',
+      price: 65000,
+      currency: '₽',
+      badge: '−28%',
+      delivery: 'Telegram',
+      enabled: true,
+    },
+    {
+      id: 8,
+      title: 'Консультация 1 час',
+      description: 'Личная консультация с Арсюхой Podmoskovny: разбор вашей схемы, подбор банков и стратегия выхода на объём.',
+      category: 'consulting',
+      price: 5000,
+      currency: '₽',
+      badge: 'Live',
+      delivery: 'Telegram / Zoom',
+      enabled: true,
+    },
+    {
+      id: 9,
+      title: 'Чек-лист: Подключение казино к API',
+      description: 'Технический мануал по интеграции сайта казино с Enter Pay: ключи, webhook, тестовые платежи.',
+      category: 'manuals',
+      price: 3490,
+      currency: '₽',
+      badge: null,
+      delivery: 'PDF',
+      enabled: true,
+    },
+    {
+      id: 10,
+      title: 'ЛК Альфа-Банк + карта',
+      description: 'Личный кабинет Альфа-Банка с активной картой. Под высокочековый трафик.',
+      category: 'bank_lk',
+      price: 19500,
+      currency: '₽',
+      badge: 'Premium',
+      delivery: 'Telegram',
+      enabled: true,
+    },
+  ];
+  if (!Array.isArray(db.shopOrders)) db.shopOrders = [];
+  saveDb(db);
+}
+
+app.get('/api/shop/info', requireAuth, (req, res) => {
+  res.json({
+    name: 'Enter Pay Shop',
+    vendor: 'Arsyukha Podmoskovny',
+    tagline: 'Магазин для питупишеров: мануалы, ЛК банков и инструменты под P2P для казино',
+    supportTelegram: '@enterpayrisk_bot',
+    supportChannel: '@enterpayrisk',
+  });
+});
+
+app.get('/api/shop/products', requireAuth, (req, res) => {
+  const db = getDb();
+  initShopProducts(db);
+  const { category } = req.query;
+  let products = (db.shopProducts || []).filter((p) => p.enabled !== false);
+  if (category && category !== 'all') {
+    products = products.filter((p) => p.category === category);
+  }
+  res.json(products);
+});
+
+app.get('/api/shop/orders', requireAuth, (req, res) => {
+  const db = getDb();
+  initShopProducts(db);
+  const orders = (db.shopOrders || [])
+    .filter((o) => String(o.userId) === String(req.user.id))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.json(orders);
+});
+
+app.post('/api/shop/orders', requireAuth, (req, res) => {
+  const db = getDb();
+  initShopProducts(db);
+  initMerchants(db);
+  const productId = parseInt(req.body?.productId, 10);
+  if (!productId) return res.status(400).json({ error: 'Укажите productId' });
+
+  const product = (db.shopProducts || []).find((p) => p.id === productId && p.enabled !== false);
+  if (!product) return res.status(404).json({ error: 'Товар не найден' });
+
+  const merchant = getUserMerchant(db, req.user.id);
+  if (!merchant) return res.status(400).json({ error: 'Сначала завершите регистрацию мерчанта' });
+
+  const price = Number(product.price) || 0;
+  if ((merchant.balance || 0) < price) {
+    return res.status(400).json({ error: 'Недостаточно средств на балансе. Пополните кошелёк.' });
+  }
+
+  merchant.balance = (merchant.balance || 0) - price;
+
+  const order = {
+    id: nextId(db.shopOrders || []),
+    userId: req.user.id,
+    productId: product.id,
+    productTitle: product.title,
+    category: product.category,
+    amount: price,
+    currency: product.currency || '₽',
+    status: 'processing',
+    delivery: product.delivery || 'Telegram',
+    createdAt: new Date().toISOString(),
+    deliveryHint: `Напишите в @enterpayrisk_bot: «Заказ #» + ваш ID. Менеджер: Arsyukha Podmoskovny`,
+  };
+
+  if (!Array.isArray(db.shopOrders)) db.shopOrders = [];
+  db.shopOrders.push(order);
+
+  if (!Array.isArray(db.transactions)) db.transactions = [];
+  db.transactions.push({
+    id: nextId(db.transactions),
+    type: 'shop_purchase',
+    merchantId: String(merchant.id),
+    amount: price,
+    currency: product.currency || '₽',
+    status: 'completed',
+    productId: product.id,
+    shopOrderId: order.id,
+    description: product.title,
+    createdAt: order.createdAt,
+  });
+
+  saveDb(db);
+  res.json({ order, balance: merchant.balance });
+});
+
 module.exports = app;
 
 if (require.main === module) {

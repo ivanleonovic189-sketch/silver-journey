@@ -13,6 +13,7 @@ import Loader from './components/Loader';
 import WalletModal from './components/WalletModal';
 import WelcomeModal from './components/WelcomeModal';
 import Settings from './components/Settings';
+import Shop from './components/Shop';
 
 function readStoredSession() {
   const savedToken = localStorage.getItem('enterPayToken');
@@ -43,7 +44,7 @@ export default function App() {
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [merchantDevices, setMerchantDevices] = useState([]);
   const [loading, setLoading] = useState(storedSession.hasSession);
-  const validTabs = ['dashboard', 'deals', 'appeals', 'payouts', 'history', 'devices', 'ref', 'settings', 'merchants', 'transactions', 'stats'];
+  const validTabs = ['dashboard', 'deals', 'appeals', 'payouts', 'history', 'devices', 'shop', 'ref', 'settings', 'merchants', 'transactions', 'stats'];
   const [activeTab, setActiveTabState] = useState(() => {
     const hash = window.location.hash.slice(1) || 'dashboard';
     return validTabs.includes(hash) ? hash : 'dashboard';
@@ -707,6 +708,16 @@ export default function App() {
                 getAuthHeaders={getAuthHeaders}
                 onTabChange={setActiveTab}
                 onDeviceAdded={fetchMerchantDevices}
+              />
+            )}
+            {activeTab === 'shop' && (
+              <Shop
+                getAuthHeaders={getAuthHeaders}
+                stats={stats}
+                onPurchaseComplete={() => {
+                  fetchStats();
+                  fetchTransactions();
+                }}
               />
             )}
             {activeTab === 'settings' && (
@@ -1746,14 +1757,6 @@ export default function App() {
       {showWelcomeModal && (
         <WelcomeModal
           userName={user?.name}
-          userRole={user?.role}
-          getAuthHeaders={getAuthHeaders}
-          onSaved={(profile) => {
-            const updated = { ...user, ...profile };
-            setUser(updated);
-            localStorage.setItem('enterPayUser', JSON.stringify(updated));
-            setShowWelcomeModal(false);
-          }}
           onClose={() => setShowWelcomeModal(false)}
         />
       )}
