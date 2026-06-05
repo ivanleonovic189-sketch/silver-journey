@@ -5,14 +5,12 @@ import EnterShopLogo from './EnterShopLogo';
 const CATEGORIES = [
   { id: 'all', label: 'Все' },
   { id: 'bank_lk', label: 'ЛК банков' },
-  { id: 'sims', label: 'SIM-карты' },
   { id: 'services', label: 'Сервисы' },
   { id: 'packs', label: 'Пакеты' },
 ];
 
 const CATEGORY_LABELS = {
   bank_lk: 'ЛК банка',
-  sims: 'SIM-карта',
   services: 'Сервис',
   packs: 'Пакет',
 };
@@ -311,6 +309,9 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
                     gap: '0.75rem',
                   }}
                 >
+                  {p.image && (
+                    <img src={p.image} alt="" style={{ width: '56px', height: '56px', objectFit: 'contain' }} />
+                  )}
                   <div>
                     <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       {CATEGORY_LABELS[p.category] || p.category}

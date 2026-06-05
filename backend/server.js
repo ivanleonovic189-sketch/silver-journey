@@ -1057,7 +1057,7 @@ app.get('/api/stats', requireAuth, (req, res) => {
 
 // ========== МАГАЗИН (P2P для питупишеров) ==========
 
-const SHOP_CATALOG_VERSION = 5;
+const SHOP_CATALOG_VERSION = 6;
 
 function getShopCatalog() {
   return [
@@ -1068,6 +1068,7 @@ function getShopCatalog() {
       category: 'bank_lk',
       price: 32000,
       currency: '₽',
+      image: '/shop/sber.png',
       bankName: 'Сбербанк',
       deliveryType: 'bank_lk',
       enabled: true,
@@ -1079,6 +1080,7 @@ function getShopCatalog() {
       category: 'bank_lk',
       price: 26000,
       currency: '₽',
+      image: '/shop/tbank.png',
       bankName: 'Т-Банк',
       deliveryType: 'bank_lk',
       enabled: true,
@@ -1090,6 +1092,7 @@ function getShopCatalog() {
       category: 'bank_lk',
       price: 22000,
       currency: '₽',
+      image: '/shop/vtb.webp',
       bankName: 'ВТБ',
       deliveryType: 'bank_lk',
       enabled: true,
@@ -1101,6 +1104,7 @@ function getShopCatalog() {
       category: 'bank_lk',
       price: 38000,
       currency: '₽',
+      image: '/shop/alfa.webp',
       bankName: 'Альфа-Банк',
       deliveryType: 'bank_lk',
       enabled: true,
@@ -1117,23 +1121,13 @@ function getShopCatalog() {
       enabled: true,
     },
     {
-      id: 11,
-      title: 'SIM Билайн (физлицо)',
-      description: 'Готовая SIM Билайн под P2P: номер, регистрация, СБП. Подходит для отдельного трафика.',
-      category: 'sims',
-      price: 5500,
-      currency: '₽',
-      operatorName: 'Билайн',
-      deliveryType: 'sim',
-      enabled: true,
-    },
-    {
       id: 12,
       title: 'Аккаунт Госуслуги',
       description: 'Подтверждённый аккаунт Госуслуг (УЗ-1). Логин, пароль и СНИЛС для верификаций.',
       category: 'services',
       price: 18500,
       currency: '₽',
+      image: '/shop/gosuslugi.png',
       serviceName: 'Госуслуги',
       deliveryType: 'account',
       enabled: true,
