@@ -71,9 +71,16 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
       const data = await res.json();
 
       if (res.ok) {
+        const userData = { ...data.user };
+        if (data.verification) {
+          userData.verified = data.verification.verified;
+          if (data.verification.code) {
+            userData.verificationCode = data.verification.code;
+          }
+        }
         localStorage.setItem('enterPayToken', data.token);
-        localStorage.setItem('enterPayUser', JSON.stringify(data.user));
-        onLogin(data.user, data.token, { justRegistered: !isLogin });
+        localStorage.setItem('enterPayUser', JSON.stringify(userData));
+        onLogin(userData, data.token, { justRegistered: !isLogin });
       } else {
         setError(data.error || 'Ошибка авторизации');
       }

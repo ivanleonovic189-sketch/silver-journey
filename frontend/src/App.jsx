@@ -195,7 +195,6 @@ export default function App() {
   useEffect(() => {
     if (token && user) {
       if (user.role === 'shop') {
-        setLoading(false);
         return undefined;
       }
       let cancelled = false;
@@ -242,6 +241,7 @@ export default function App() {
   const verifyToken = async (authToken) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
+    const cachedUser = readStoredSession().user;
     try {
       const res = await fetch(`${API}/api/auth/me`, {
         headers: {
@@ -253,29 +253,41 @@ export default function App() {
 
       if (res.ok) {
         const data = await res.json();
-        setUser(data.user);
-      } else {
+        const userData = { ...data.user };
+        if (data.verification) {
+          userData.verified = data.verification.verified;
+          if (data.verification.code) {
+            userData.verificationCode = data.verification.code;
+          }
+        }
+        if (
+          userData.role === 'shop' &&
+          userData.verified !== true &&
+          !userData.verificationCode &&
+          cachedUser?.verificationCode
+        ) {
+          userData.verificationCode = cachedUser.verificationCode;
+        }
+        setUser(userData);
+        localStorage.setItem('enterPayUser', JSON.stringify(userData));
+      } else if (res.status === 401) {
         localStorage.removeItem('enterPayToken');
         localStorage.removeItem('enterPayUser');
         setToken(null);
         setUser(null);
-        setLoading(false);
       }
     } catch (err) {
-      localStorage.removeItem('enterPayToken');
-      localStorage.removeItem('enterPayUser');
-      setToken(null);
-      setUser(null);
-      setLoading(false);
+      console.warn('Не удалось проверить сессию, используем сохранённые данные:', err);
     } finally {
       clearTimeout(timeout);
+      setLoading(false);
     }
   };
 
   const handleLogin = (userData, authToken, options = {}) => {
-    setLoading(true);
     setUser(userData);
     setToken(authToken);
+    setLoading(userData.role === 'shop' ? false : true);
     if (options.justRegistered) {
       sessionStorage.setItem('enterPayShowWelcome', '1');
     }

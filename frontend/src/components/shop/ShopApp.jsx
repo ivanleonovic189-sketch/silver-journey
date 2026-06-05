@@ -22,8 +22,20 @@ export default function ShopApp({ user, token, onLogout, theme, onThemeToggle, o
   const [withdrawals, setWithdrawals] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [verified, setVerified] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
+  const [verified, setVerified] = useState(() =>
+    user?.role === 'shop' ? user?.verified === true : true
+  );
+  const [verificationCode, setVerificationCode] = useState(() =>
+    user?.role === 'shop' && user?.verified !== true ? user?.verificationCode || '' : ''
+  );
+
+  useEffect(() => {
+    if (user?.role !== 'shop') return;
+    setVerified(user.verified === true);
+    if (user.verified !== true && user.verificationCode) {
+      setVerificationCode(user.verificationCode);
+    }
+  }, [user?.verified, user?.verificationCode, user?.role]);
 
   const setActiveTab = (tab) => {
     setActiveTabState(tab);

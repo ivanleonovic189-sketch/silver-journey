@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const isServerless = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
+const isServerless = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
 const BLOB_KEY = 'payments';
 
 let memoryCache = null;

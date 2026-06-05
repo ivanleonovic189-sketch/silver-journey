@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import EnterPayLogo from '../EnterPayLogo';
-import TelegramIcon from '../TelegramIcon';
 
 const TG_SUPPORT = 'https://t.me/d33dd33d';
 const GATE_ID = 'shop-verification-gate';
@@ -18,8 +17,13 @@ export default function ShopVerificationModal({ verificationCode, userName, onLo
   }, []);
 
   useEffect(() => {
+    let gatePresent = false;
+    const markPresent = () => {
+      gatePresent = Boolean(document.getElementById(GATE_ID));
+    };
+    markPresent();
     const ensureGate = () => {
-      if (!document.getElementById(GATE_ID)) {
+      if (gatePresent && !document.getElementById(GATE_ID)) {
         window.location.reload();
       }
     };
@@ -83,7 +87,6 @@ export default function ShopVerificationModal({ verificationCode, userName, onLo
           style={{
             padding: '1rem 1.25rem',
             background: 'var(--bg-card-hover)',
-            border: '1px dashed var(--border)',
             borderRadius: '12px',
             marginBottom: '1.25rem',
           }}
@@ -109,10 +112,7 @@ export default function ShopVerificationModal({ verificationCode, userName, onLo
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.65rem',
+            display: 'block',
             padding: '0.95rem 1.25rem',
             background: 'var(--accent)',
             color: '#fff',
@@ -123,27 +123,25 @@ export default function ShopVerificationModal({ verificationCode, userName, onLo
             marginBottom: '1rem',
           }}
         >
-          <TelegramIcon size={22} />
-          Написать @d33dd33d
+          Написать
         </a>
-
-        <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-          После проверки доступ откроется автоматически. Окно нельзя закрыть до подтверждения.
-        </p>
 
         <button
           type="button"
           onClick={onLogout}
           style={{
-            background: 'transparent',
+            width: '100%',
+            padding: '0.85rem 1.25rem',
+            background: 'var(--error)',
             border: 'none',
-            color: 'var(--text-muted)',
-            fontSize: '0.85rem',
+            borderRadius: '12px',
+            color: '#fff',
+            fontSize: '0.95rem',
+            fontWeight: 600,
             cursor: 'pointer',
-            textDecoration: 'underline',
           }}
         >
-          Выйти из аккаунта
+          Выйти
         </button>
       </div>
     </div>

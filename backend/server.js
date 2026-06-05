@@ -44,7 +44,7 @@ app.use(cors({
 app.use(express.json());
 
 // Netlify Function: путь приходит как /auth/... вместо /api/auth/...
-if (process.env.NETLIFY) {
+if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
   app.use((req, res, next) => {
     const qIndex = req.url.indexOf('?');
     const pathname = qIndex === -1 ? req.url : req.url.slice(0, qIndex);
@@ -62,7 +62,7 @@ app.get('/api/health', (_req, res) => {
 
 initDb();
 
-if (process.env.NETLIFY) {
+if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
   app.use(async (req, res, next) => {
     try {
       await ensureDbReady();
@@ -80,7 +80,7 @@ function resolveUserFromToken(token) {
   const jwt = parseAuthToken(token);
   if (jwt?.user) {
     const db = getDb();
-    const dbUser = db.users?.find((u) => u.id === jwt.user.id);
+    const dbUser = db.users?.find((u) => String(u.id) === String(jwt.user.id));
     if (dbUser) {
       const { password, ...safe } = dbUser;
       return safe;
@@ -128,17 +128,28 @@ function isShopVerified(user) {
 
 function ensureShopVerificationFields(db, user) {
   if (!user || user.role !== 'shop') return user;
+  const dbUser = findDbUser(db, user.id);
+  if (!dbUser) return user;
+
   let changed = false;
-  if (user.verified !== true && user.verified !== false) {
-    user.verified = false;
+  if (dbUser.verified !== true && dbUser.verified !== false) {
+    dbUser.verified = false;
     changed = true;
   }
-  if (!user.verified && !user.verificationCode) {
-    user.verificationCode = generateVerificationCode();
+  if (!dbUser.verified && !dbUser.verificationCode) {
+    dbUser.verificationCode = generateVerificationCode();
     changed = true;
   }
   if (changed) saveDb(db);
-  return user;
+  return dbUser;
+}
+
+function shopVerificationPayload(user) {
+  if (!user || user.role !== 'shop') return null;
+  return {
+    verified: isShopVerified(user),
+    code: user.verified ? null : user.verificationCode || null,
+  };
 }
 
 // Регистрация
@@ -203,8 +214,16 @@ app.post('/api/auth/register', async (req, res) => {
   saveDb(db);
 
   const { password: _, ...userPublic } = user;
+  if (role === 'shop') {
+    userPublic.verified = false;
+    userPublic.verificationCode = user.verificationCode;
+  }
   const token = createAuthToken(userPublic);
-  res.status(201).json({ user: userPublic, token });
+  res.status(201).json({
+    user: userPublic,
+    token,
+    verification: shopVerificationPayload(user),
+  });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Ошибка регистрации' });
@@ -223,7 +242,7 @@ app.post('/api/auth/login', async (req, res) => {
   
   if (!Array.isArray(db.users)) db.users = [];
   const emailNorm = String(email).toLowerCase().trim();
-  const user = db.users.find(u => u.email === emailNorm);
+  let user = db.users.find(u => u.email === emailNorm);
   
   if (!user) {
     return res.status(401).json({ error: 'Неверный email или пароль' });
@@ -233,10 +252,19 @@ app.post('/api/auth/login', async (req, res) => {
   if (user.password !== passwordHash) {
     return res.status(401).json({ error: 'Неверный email или пароль' });
   }
-  
+
+  if (user.role === 'shop') {
+    ensureShopMerchant(db, user);
+    user = ensureShopVerificationFields(db, user);
+  }
+
   const { password: _, ...userPublic } = user;
   const token = createAuthToken(userPublic);
-  res.json({ user: userPublic, token });
+  res.json({
+    user: userPublic,
+    token,
+    verification: shopVerificationPayload(user),
+  });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Ошибка входа' });
@@ -256,12 +284,7 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   const { password: _, ...userPublic } = u;
   res.json({
     user: userPublic,
-    verification: u.role === 'shop'
-      ? {
-          verified: isShopVerified(u),
-          code: u.verified ? null : u.verificationCode,
-        }
-      : null,
+    verification: shopVerificationPayload(u),
   });
 });
 

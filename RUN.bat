@@ -32,7 +32,7 @@ timeout /t 2 /nobreak >nul
 
 echo.
 echo Zapusk BACKEND  (port 3002)...
-start "EnterPay-API" /D "%~dp0" cmd /k "node backend\server.js"
+start "EnterPay-API" /D "%~dp0" cmd /k "set NETLIFY=& node backend\server.js"
 
 timeout /t 2 /nobreak >nul
 
