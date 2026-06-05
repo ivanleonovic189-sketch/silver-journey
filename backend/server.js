@@ -69,7 +69,9 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'enter-pay-api' });
 });
 
-initDb();
+if (!isServerless) {
+  initDb();
+}
 
 if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
   app.use(async (req, res, next) => {
@@ -316,7 +318,7 @@ app.post('/api/auth/register', async (req, res) => {
   });
   } catch (err) {
     console.error('Register error:', err);
-    res.status(500).json({ error: 'Ошибка регистрации' });
+    res.status(500).json({ ok: false });
   }
 });
 
@@ -351,7 +353,6 @@ app.post('/api/auth/login', async (req, res) => {
 
   const { password: _, ...userPublic } = user;
   const token = createAuthToken(userPublic);
-  await saveDbAsync(db);
   res.json({
     user: userPublic,
     token,
@@ -359,7 +360,7 @@ app.post('/api/auth/login', async (req, res) => {
   });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Ошибка входа' });
+    res.status(500).json({ ok: false });
   }
 });
 

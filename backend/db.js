@@ -175,7 +175,6 @@ async function saveDbAsync(data) {
       await saveToBlob(data);
     } catch (err) {
       console.error('Blob save failed (non-fatal):', err);
-      throw err;
     }
   }
 }
