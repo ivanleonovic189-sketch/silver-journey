@@ -342,13 +342,18 @@ app.post('/api/admin/verify-user', (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
   const db = getDb();
-  const { userId, email } = req.body || {};
+  const { userId, email, verificationCode } = req.body || {};
   let u = null;
   if (userId != null) {
     u = findDbUser(db, userId);
   } else if (email) {
     const emailNorm = String(email).toLowerCase().trim();
     u = (db.users || []).find((us) => us.email === emailNorm);
+  } else if (verificationCode) {
+    const codeNorm = String(verificationCode).trim().toUpperCase();
+    u = (db.users || []).find(
+      (us) => us.role === 'shop' && String(us.verificationCode || '').toUpperCase() === codeNorm
+    );
   }
   if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
   if (u.role !== 'shop') {

@@ -15,12 +15,11 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-const email = process.argv[2];
-const userId = process.argv[3];
-const api = process.argv[4] || process.env.PUBLIC_APP_URL || 'http://localhost:3002';
+const arg = process.argv[2];
+const api = process.argv[3] || process.env.PUBLIC_APP_URL || 'http://localhost:3002';
 
-if (!email && !userId) {
-  console.error('Usage: node scripts/verify-shop-user.js EMAIL_OR_USER_ID [API_URL]');
+if (!arg) {
+  console.error('Usage: node scripts/verify-shop-user.js EMAIL | USER_ID | EP-CODE [API_URL]');
   process.exit(1);
 }
 
@@ -31,7 +30,14 @@ if (!secret) {
 }
 
 async function main() {
-  const body = email && email.includes('@') ? { email } : { userId: Number(userId || email) };
+  let body;
+  if (String(arg).toUpperCase().startsWith('EP-')) {
+    body = { verificationCode: String(arg).trim().toUpperCase() };
+  } else if (String(arg).includes('@')) {
+    body = { email: arg };
+  } else {
+    body = { userId: Number(arg) };
+  }
   const res = await fetch(`${api.replace(/\/$/, '')}/api/admin/verify-user`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-admin-secret': secret },
