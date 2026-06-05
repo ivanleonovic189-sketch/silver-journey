@@ -1057,7 +1057,7 @@ app.get('/api/stats', requireAuth, (req, res) => {
 
 // ========== МАГАЗИН (P2P для питупишеров) ==========
 
-const SHOP_CATALOG_VERSION = 4;
+const SHOP_CATALOG_VERSION = 5;
 
 function getShopCatalog() {
   return [
@@ -1068,7 +1068,6 @@ function getShopCatalog() {
       category: 'bank_lk',
       price: 32000,
       currency: '₽',
-      image: '/banks/sber.jpg',
       bankName: 'Сбербанк',
       deliveryType: 'bank_lk',
       enabled: true,
@@ -1080,7 +1079,6 @@ function getShopCatalog() {
       category: 'bank_lk',
       price: 26000,
       currency: '₽',
-      image: '/banks/tbank.jpg',
       bankName: 'Т-Банк',
       deliveryType: 'bank_lk',
       enabled: true,
@@ -1092,7 +1090,6 @@ function getShopCatalog() {
       category: 'bank_lk',
       price: 22000,
       currency: '₽',
-      image: '/banks/vtb.jpg',
       bankName: 'ВТБ',
       deliveryType: 'bank_lk',
       enabled: true,
@@ -1104,7 +1101,6 @@ function getShopCatalog() {
       category: 'bank_lk',
       price: 38000,
       currency: '₽',
-      image: '/banks/alfa.jpg',
       bankName: 'Альфа-Банк',
       deliveryType: 'bank_lk',
       enabled: true,
@@ -1112,11 +1108,10 @@ function getShopCatalog() {
     {
       id: 7,
       title: 'Пакет: 5 ЛК под трафик',
-      description: 'Сбер, Т-Банк, ВТБ, Альфа и Ozon — комплект из 5 ЛК. Экономия ~20% к рознице.',
+      description: 'Сбер, Т-Банк, ВТБ, Альфа и Ozon: комплект из 5 ЛК. Экономия ~20% к рознице.',
       category: 'packs',
       price: 95000,
       currency: '₽',
-      image: '/shop/pack.jpg',
       deliveryType: 'pack',
       packBanks: ['Сбербанк', 'Т-Банк', 'ВТБ', 'Альфа-Банк', 'Ozon Банк'],
       enabled: true,
@@ -1128,7 +1123,6 @@ function getShopCatalog() {
       category: 'sims',
       price: 5500,
       currency: '₽',
-      image: '/shop/beeline.jpg',
       operatorName: 'Билайн',
       deliveryType: 'sim',
       enabled: true,
@@ -1140,7 +1134,6 @@ function getShopCatalog() {
       category: 'services',
       price: 18500,
       currency: '₽',
-      image: '/shop/gosuslugi.jpg',
       serviceName: 'Госуслуги',
       deliveryType: 'account',
       enabled: true,
@@ -1219,9 +1212,7 @@ function initShopProducts(db) {
 }
 
 app.get('/api/shop/info', requireAuth, (req, res) => {
-  res.json({
-    tagline: 'ЛК банков, SIM-карты и сервисы для P2P. Оплата с основного баланса — выдача на сайте.',
-  });
+  res.json({});
 });
 
 app.get('/api/shop/products', requireAuth, (req, res) => {

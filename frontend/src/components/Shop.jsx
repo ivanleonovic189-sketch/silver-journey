@@ -174,7 +174,6 @@ function OrderDelivery({ delivery }) {
 }
 
 export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
-  const [info, setInfo] = useState(null);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [category, setCategory] = useState('all');
@@ -198,12 +197,10 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
     try {
       const headers = auth();
       const catParam = category === 'all' ? '' : `?category=${category}`;
-      const [infoRes, prodRes, ordRes] = await Promise.all([
-        fetch(`${API}/api/shop/info`, { headers }),
+      const [prodRes, ordRes] = await Promise.all([
         fetch(`${API}/api/shop/products${catParam}`, { headers }),
         fetch(`${API}/api/shop/orders`, { headers }),
       ]);
-      if (infoRes.ok) setInfo(await infoRes.json());
       if (prodRes.ok) setProducts(await prodRes.json());
       if (ordRes.ok) setOrders(await ordRes.json());
       initialLoadDone.current = true;
@@ -263,12 +260,9 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
           marginBottom: '1.5rem',
         }}
       >
-        <div style={{ marginBottom: '0.75rem' }}>
+        <div>
           <EnterShopLogo size="lg" />
         </div>
-        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: '520px', lineHeight: 1.5 }}>
-          {info?.tagline || 'ЛК банков, SIM-карты и сервисы для P2P. Оплата с основного баланса — выдача на сайте.'}
-        </p>
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
@@ -317,9 +311,6 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
                     gap: '0.75rem',
                   }}
                 >
-                  {p.image && (
-                    <img src={p.image} alt="" style={{ width: '56px', height: '56px', objectFit: 'contain' }} />
-                  )}
                   <div>
                     <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       {CATEGORY_LABELS[p.category] || p.category}
@@ -418,7 +409,7 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001, padding: '1rem', backdropFilter: 'blur(4px)' }} onClick={() => setSuccessOrder(null)}>
           <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-light)', padding: '2rem', maxWidth: '480px', width: '100%' }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)' }}>Оплата прошла успешно</h3>
-            <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Заказ #{successOrder.id} — товар уже доступен ниже</p>
+            <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Заказ #{successOrder.id}, товар уже доступен ниже</p>
             <OrderDelivery delivery={successOrder.delivery} />
             <button type="button" onClick={() => { setSuccessOrder(null); setTab('orders'); }} style={{ width: '100%', marginTop: '1.25rem', padding: '0.875rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 600, cursor: 'pointer' }}>
               Перейти к заказам
