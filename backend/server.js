@@ -1057,46 +1057,10 @@ app.get('/api/stats', requireAuth, (req, res) => {
 
 // ========== МАГАЗИН (P2P для питупишеров) ==========
 
-const SHOP_CATALOG_VERSION = 3;
+const SHOP_CATALOG_VERSION = 4;
 
 function getShopCatalog() {
   return [
-    {
-      id: 1,
-      title: 'Мануал: Старт в P2P для казино',
-      description: 'Подключение к Enter Pay, устройства, первые выплаты и типичные ошибки новичков.',
-      category: 'manuals',
-      price: 3500,
-      currency: '₽',
-      image: '/shop/manual.png',
-      deliveryType: 'download',
-      fileUrl: '/shop/manuals/p2p-start.md',
-      enabled: true,
-    },
-    {
-      id: 2,
-      title: 'Мануал: Anti-fraud и безопасность',
-      description: 'Лимиты, апелляции, триггеры блокировок и чек-лист безопасности трейдера.',
-      category: 'manuals',
-      price: 6500,
-      currency: '₽',
-      image: '/shop/manual.png',
-      deliveryType: 'download',
-      fileUrl: '/shop/manuals/antifraud.md',
-      enabled: true,
-    },
-    {
-      id: 3,
-      title: 'Мануал: Масштабирование команды',
-      description: 'Найм трейдеров, распределение трафика, KPI и выход на стабильный объём.',
-      category: 'manuals',
-      price: 9900,
-      currency: '₽',
-      image: '/shop/manual.png',
-      deliveryType: 'download',
-      fileUrl: '/shop/manuals/scaling.md',
-      enabled: true,
-    },
     {
       id: 4,
       title: 'ЛК Сбербанк (физлицо)',
@@ -1104,7 +1068,7 @@ function getShopCatalog() {
       category: 'bank_lk',
       price: 32000,
       currency: '₽',
-      image: '/banks/sber.png',
+      image: '/banks/sber.jpg',
       bankName: 'Сбербанк',
       deliveryType: 'bank_lk',
       enabled: true,
@@ -1116,7 +1080,7 @@ function getShopCatalog() {
       category: 'bank_lk',
       price: 26000,
       currency: '₽',
-      image: '/banks/tbank.png',
+      image: '/banks/tbank.jpg',
       bankName: 'Т-Банк',
       deliveryType: 'bank_lk',
       enabled: true,
@@ -1128,8 +1092,20 @@ function getShopCatalog() {
       category: 'bank_lk',
       price: 22000,
       currency: '₽',
-      image: '/banks/vtb.png',
+      image: '/banks/vtb.jpg',
       bankName: 'ВТБ',
+      deliveryType: 'bank_lk',
+      enabled: true,
+    },
+    {
+      id: 10,
+      title: 'ЛК Альфа-Банк + карта',
+      description: 'ЛК Альфа-Банка с активной картой. Под высокочековый трафик и крупные выплаты.',
+      category: 'bank_lk',
+      price: 38000,
+      currency: '₽',
+      image: '/banks/alfa.jpg',
+      bankName: 'Альфа-Банк',
       deliveryType: 'bank_lk',
       enabled: true,
     },
@@ -1140,33 +1116,33 @@ function getShopCatalog() {
       category: 'packs',
       price: 95000,
       currency: '₽',
-      image: '/shop/pack.png',
+      image: '/shop/pack.jpg',
       deliveryType: 'pack',
       packBanks: ['Сбербанк', 'Т-Банк', 'ВТБ', 'Альфа-Банк', 'Ozon Банк'],
       enabled: true,
     },
     {
-      id: 9,
-      title: 'Чек-лист: Подключение казино к API',
-      description: 'Ключи, webhook, тестовый платёж и переход в production.',
-      category: 'manuals',
-      price: 2900,
+      id: 11,
+      title: 'SIM Билайн (физлицо)',
+      description: 'Готовая SIM Билайн под P2P: номер, регистрация, СБП. Подходит для отдельного трафика.',
+      category: 'sims',
+      price: 5500,
       currency: '₽',
-      image: '/shop/manual.png',
-      deliveryType: 'download',
-      fileUrl: '/shop/manuals/api-casino.md',
+      image: '/shop/beeline.jpg',
+      operatorName: 'Билайн',
+      deliveryType: 'sim',
       enabled: true,
     },
     {
-      id: 10,
-      title: 'ЛК Альфа-Банк + карта',
-      description: 'ЛК Альфа-Банка с активной картой. Под высокочековый трафик и крупные выплаты.',
-      category: 'bank_lk',
-      price: 38000,
+      id: 12,
+      title: 'Аккаунт Госуслуги',
+      description: 'Подтверждённый аккаунт Госуслуг (УЗ-1). Логин, пароль и СНИЛС для верификаций.',
+      category: 'services',
+      price: 18500,
       currency: '₽',
-      image: '/banks/alfa.png',
-      bankName: 'Альфа-Банк',
-      deliveryType: 'bank_lk',
+      image: '/shop/gosuslugi.jpg',
+      serviceName: 'Госуслуги',
+      deliveryType: 'account',
       enabled: true,
     },
   ];
@@ -1178,6 +1154,30 @@ function buildOrderDelivery(product, orderId) {
       type: 'download',
       fileUrl: product.fileUrl,
       fileLabel: 'Скачать материал',
+    };
+  }
+  if (product.deliveryType === 'sim') {
+    const suffix = crypto.randomBytes(3).toString('hex');
+    const phone = `+7${900 + Math.floor(Math.random() * 100)}${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`;
+    return {
+      type: 'sim',
+      operator: product.operatorName || 'Билайн',
+      phone,
+      iccid: `89${String(Math.floor(Math.random() * 1e18)).padStart(18, '0')}`,
+      pin: String(Math.floor(1000 + Math.random() * 9000)),
+      note: 'SIM активирована. Не передавайте данные третьим лицам.',
+    };
+  }
+  if (product.deliveryType === 'account') {
+    const suffix = crypto.randomBytes(4).toString('hex').toUpperCase();
+    const snils = `${String(Math.floor(Math.random() * 999)).padStart(3, '0')}-${String(Math.floor(Math.random() * 999)).padStart(3, '0')}-${String(Math.floor(Math.random() * 999)).padStart(3, '0')} ${Math.floor(Math.random() * 99)}`;
+    return {
+      type: 'account',
+      service: product.serviceName || 'Госуслуги',
+      login: `gu_${orderId}_${suffix.toLowerCase()}`,
+      password: crypto.randomBytes(9).toString('base64url'),
+      snils,
+      note: 'Аккаунт подтверждён. Смените пароль при первом входе.',
     };
   }
   if (product.deliveryType === 'bank_lk') {
@@ -1220,7 +1220,7 @@ function initShopProducts(db) {
 
 app.get('/api/shop/info', requireAuth, (req, res) => {
   res.json({
-    tagline: 'Мануалы и личные кабинеты банков для P2P под казино. Оплата и выдача — на сайте.',
+    tagline: 'ЛК банков, SIM-карты и сервисы для P2P. Оплата с основного баланса — выдача на сайте.',
   });
 });
 

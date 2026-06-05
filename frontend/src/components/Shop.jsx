@@ -4,14 +4,16 @@ import EnterShopLogo from './EnterShopLogo';
 
 const CATEGORIES = [
   { id: 'all', label: 'Все' },
-  { id: 'manuals', label: 'Мануалы' },
   { id: 'bank_lk', label: 'ЛК банков' },
+  { id: 'sims', label: 'SIM-карты' },
+  { id: 'services', label: 'Сервисы' },
   { id: 'packs', label: 'Пакеты' },
 ];
 
 const CATEGORY_LABELS = {
-  manuals: 'Мануал',
   bank_lk: 'ЛК банка',
+  sims: 'SIM-карта',
+  services: 'Сервис',
   packs: 'Пакет',
 };
 
@@ -65,6 +67,62 @@ function OrderDelivery({ delivery }) {
         >
           {delivery.fileLabel || 'Скачать'}
         </a>
+      </div>
+    );
+  }
+
+  if (delivery.type === 'sim') {
+    return (
+      <div style={boxStyle}>
+        <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '0.5rem' }}>{delivery.operator}</div>
+        <div style={fieldStyle}>
+          <span style={{ color: 'var(--text-muted)' }}>Номер</span>
+          <button type="button" onClick={() => copy(delivery.phone, 'phone')} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 600 }}>
+            {delivery.phone} {copied === 'phone' ? '✓' : ''}
+          </button>
+        </div>
+        <div style={fieldStyle}>
+          <span style={{ color: 'var(--text-muted)' }}>ICCID</span>
+          <button type="button" onClick={() => copy(delivery.iccid, 'iccid')} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 600 }}>
+            {delivery.iccid} {copied === 'iccid' ? '✓' : ''}
+          </button>
+        </div>
+        {delivery.pin && (
+          <div style={fieldStyle}>
+            <span style={{ color: 'var(--text-muted)' }}>PIN</span>
+            <button type="button" onClick={() => copy(delivery.pin, 'pin')} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 600 }}>
+              {delivery.pin} {copied === 'pin' ? '✓' : ''}
+            </button>
+          </div>
+        )}
+        {delivery.note && <p style={{ margin: '0.75rem 0 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{delivery.note}</p>}
+      </div>
+    );
+  }
+
+  if (delivery.type === 'account') {
+    return (
+      <div style={boxStyle}>
+        <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '0.5rem' }}>{delivery.service}</div>
+        <div style={fieldStyle}>
+          <span style={{ color: 'var(--text-muted)' }}>Логин</span>
+          <button type="button" onClick={() => copy(delivery.login, 'login')} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 600 }}>
+            {delivery.login} {copied === 'login' ? '✓' : ''}
+          </button>
+        </div>
+        <div style={fieldStyle}>
+          <span style={{ color: 'var(--text-muted)' }}>Пароль</span>
+          <button type="button" onClick={() => copy(delivery.password, 'pass')} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 600 }}>
+            {delivery.password} {copied === 'pass' ? '✓' : ''}
+          </button>
+        </div>
+        {delivery.snils && (
+          <div style={fieldStyle}>
+            <span style={{ color: 'var(--text-muted)' }}>СНИЛС</span>
+            <span style={{ color: 'var(--text)', fontWeight: 600 }}>{delivery.snils}</span>
+          </div>
+        )}
+        {delivery.note && <p style={{ margin: '0.75rem 0 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{delivery.note}</p>}
       </div>
     );
   }
@@ -127,7 +185,7 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
   const [error, setError] = useState('');
   const [successOrder, setSuccessOrder] = useState(null);
 
-  const balance = stats?.balance ?? 0;
+  const balance = stats?.balance ?? stats?.totalAmount ?? 0;
   const initialLoadDone = useRef(false);
   const getAuthHeadersRef = useRef(getAuthHeaders);
   getAuthHeadersRef.current = getAuthHeaders;
@@ -203,25 +261,14 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
           border: '1px solid var(--border-light)',
           padding: '1.75rem 2rem',
           marginBottom: '1.5rem',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '1.25rem',
-          alignItems: 'center',
-          justifyContent: 'space-between',
         }}
       >
-        <div>
-          <div style={{ marginBottom: '0.75rem' }}>
-            <EnterShopLogo size="lg" />
-          </div>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: '520px', lineHeight: 1.5 }}>
-            {info?.tagline || 'Мануалы и личные кабинеты банков для P2P. Оплата и выдача — на сайте.'}
-          </p>
+        <div style={{ marginBottom: '0.75rem' }}>
+          <EnterShopLogo size="lg" />
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Баланс для покупок</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)' }}>{balance.toLocaleString()} ₽</div>
-        </div>
+        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: '520px', lineHeight: 1.5 }}>
+          {info?.tagline || 'ЛК банков, SIM-карты и сервисы для P2P. Оплата с основного баланса — выдача на сайте.'}
+        </p>
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
@@ -271,21 +318,7 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
                   }}
                 >
                   {p.image && (
-                    <div
-                      style={{
-                        width: '56px',
-                        height: '56px',
-                        borderRadius: '14px',
-                        background: 'var(--bg-card-hover)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '0.5rem',
-                        border: '1px solid var(--border-light)',
-                      }}
-                    >
-                      <img src={p.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                    </div>
+                    <img src={p.image} alt="" style={{ width: '56px', height: '56px', objectFit: 'contain' }} />
                   )}
                   <div>
                     <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -359,12 +392,12 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
                 <strong style={{ color: 'var(--text)' }}>{selected.price.toLocaleString()} {selected.currency || '₽'}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span>Баланс после</span>
+                <span>Баланс после оплаты</span>
                 <strong style={{ color: balance >= selected.price ? 'var(--positive)' : 'var(--error)' }}>
                   {(balance - selected.price).toLocaleString()} ₽
                 </strong>
               </div>
-              <div>Товар будет выдан сразу в разделе «Мои заказы»</div>
+              <div>Списание с основного баланса. Товар будет выдан в «Мои заказы»</div>
             </div>
             {balance < selected.price && (
               <div style={{ color: 'var(--error)', fontSize: '0.85rem', marginBottom: '1rem' }}>Недостаточно средств. Пополните баланс в кошельке.</div>
