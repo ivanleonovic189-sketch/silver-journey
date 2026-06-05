@@ -341,11 +341,22 @@ app.patch('/api/settings', requireAuth, (req, res) => {
 
 // ========== МЕРЧАНТЫ ==========
 
+function getUserMerchant(db, userId) {
+  initMerchants(db);
+  return (db.merchants || []).find((m) => String(m.userId) === String(userId));
+}
+
+function getUserTransactions(db, userId) {
+  const merchant = getUserMerchant(db, userId);
+  if (!merchant) return [];
+  return (db.transactions || []).filter((t) => String(t.merchantId) === String(merchant.id));
+}
+
 // Получить список мерчантов
 app.get('/api/merchants', requireAuth, (req, res) => {
   const db = getDb();
   initMerchants(db);
-  const merchants = db.merchants || [];
+  const merchants = (db.merchants || []).filter((m) => String(m.userId) === String(req.user.id));
   res.json(merchants.map(m => {
     const { apiKey, ...publicMerchant } = m;
         return publicMerchant;
@@ -598,9 +609,9 @@ app.post('/api/transactions/withdraw', requireAuth, (req, res) => {
 app.get('/api/transactions', requireAuth, (req, res) => {
   const db = getDb();
   const { merchantId, userId, status } = req.query;
-  let transactions = db.transactions || [];
+  let transactions = getUserTransactions(db, req.user.id);
   
-  if (merchantId) transactions = transactions.filter(t => t.merchantId === merchantId);
+  if (merchantId) transactions = transactions.filter(t => String(t.merchantId) === String(merchantId));
   if (userId) transactions = transactions.filter(t => t.userId === userId);
   if (status) transactions = transactions.filter(t => t.status === status);
   
@@ -772,7 +783,8 @@ app.patch('/api/payout-requests/:id/complete', requireAuth, (req, res) => {
   const now = new Date();
   if (new Date(request.expiresAt) < now) return res.status(400).json({ error: 'Время на оплату истекло' });
 
-  const traderMerchant = db.merchants.find(m => String(m.userId) === String(req.user.id)) || db.merchants.find(m => m.id === 1) || db.merchants[0];
+  const traderMerchant = getUserMerchant(db, req.user.id);
+  if (!traderMerchant) return res.status(400).json({ error: 'Мерчант не найден' });
   const merchant = traderMerchant;
   const trader = req.user;
   const hasReferrer = !!trader.referrerId;
@@ -971,10 +983,11 @@ app.delete('/api/merchant-devices/:id', requireAuth, (req, res) => {
 app.get('/api/stats', requireAuth, (req, res) => {
   const db = getDb();
   initPayoutRequests(db);
-  const transactions = db.transactions || [];
-  const payoutRequests = db.payoutRequests || [];
-  const merchant = db.merchants?.[0];
+  const merchant = getUserMerchant(db, req.user.id);
   const balance = merchant?.balance ?? 0;
+  const transactions = getUserTransactions(db, req.user.id);
+  const payoutRequests = db.payoutRequests || [];
+  const userPayouts = payoutRequests.filter((r) => String(r.traderId) === String(req.user.id));
 
   const insuranceDeposit = transactions
     .filter(t => t.type === 'merchant_deposit' && t.status === 'completed')
@@ -995,8 +1008,8 @@ app.get('/api/stats', requireAuth, (req, res) => {
     balance,
     insuranceDeposit,
     workingDeposit,
-    payoutCompleted: payoutRequests.filter(r => r.status === 'completed').reduce((sum, r) => sum + (r.amount || 0), 0),
-    payoutCompletedCount: payoutRequests.filter(r => r.status === 'completed').length,
+    payoutCompleted: userPayouts.filter(r => r.status === 'completed').reduce((sum, r) => sum + (r.amount || 0), 0),
+    payoutCompletedCount: userPayouts.filter(r => r.status === 'completed').length,
     pendingPayouts,
     pendingDeals,
     appealsCount,
