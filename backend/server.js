@@ -733,6 +733,16 @@ function initPayoutRequests(db) {
   if (needsSave) saveDb(db);
 }
 
+function scopePayoutRequestsForUser(requests, userId) {
+  const uid = String(userId);
+  return requests.filter(
+    (r) =>
+      r.status === 'pending' ||
+      String(r.traderId) === uid ||
+      String(r.cancelledBy) === uid
+  );
+}
+
 // Список заявок на выплату (по умолчанию pending, можно status=all для истории)
 app.get('/api/payout-requests', requireAuth, (req, res) => {
   const db = getDb();
@@ -746,6 +756,7 @@ app.get('/api/payout-requests', requireAuth, (req, res) => {
   if (status && status !== 'all') requests = requests.filter(r => r.status === status);
   if (paymentMethod) requests = requests.filter(r => r.paymentMethod === paymentMethod);
 
+  requests = scopePayoutRequestsForUser(requests, req.user.id);
   requests = requests.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   res.json(requests);
 });

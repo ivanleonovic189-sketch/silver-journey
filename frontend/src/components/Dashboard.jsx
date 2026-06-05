@@ -135,8 +135,8 @@ export default function Dashboard({
         const completed = methodTxs.filter((t) => t.status === 'completed').length;
         const conversion = methodTxs.length > 0 ? Math.round((completed / methodTxs.length) * 100) : 0;
         const deviceReqs = norm(device.requisites);
-        const usedToday = (payoutRequests || []).filter((r) => r.status === 'completed' && norm(r.requisites) === deviceReqs && new Date(r.completedAt || r.createdAt) >= todayStart && new Date(r.completedAt || r.createdAt) <= todayEnd).reduce((s, r) => s + (r.amount || 0), 0);
-        const usedTotal = (payoutRequests || []).filter((r) => r.status === 'completed' && norm(r.requisites) === deviceReqs).reduce((s, r) => s + (r.amount || 0), 0);
+        const usedToday = (payoutRequests || []).filter((r) => r.status === 'completed' && String(r.traderId) === String(user?.id) && norm(r.requisites) === deviceReqs && new Date(r.completedAt || r.createdAt) >= todayStart && new Date(r.completedAt || r.createdAt) <= todayEnd).reduce((s, r) => s + (r.amount || 0), 0);
+        const usedTotal = (payoutRequests || []).filter((r) => r.status === 'completed' && String(r.traderId) === String(user?.id) && norm(r.requisites) === deviceReqs).reduce((s, r) => s + (r.amount || 0), 0);
         const maxDay = Number(device.maxTurnoverPerDay) || 0;
         const maxTotal = Number(device.maxTurnoverTotal) || 0;
         const limit = maxTotal > 0 ? maxTotal : (maxDay > 0 ? maxDay : 300000);
@@ -230,7 +230,7 @@ export default function Dashboard({
   const totalAppeals = transactions.filter((t) => t.status === 'failed' && filterByPeriod(t.createdAt, appealsPeriod)).length;
   // Выплаты = сумма завершённых заявок на выплату (P2P), отфильтрованных по периоду
   const totalPayouts = payoutRequests
-    .filter((r) => r.status === 'completed' && filterByPeriod(r.completedAt || r.createdAt, payoutsPeriod))
+    .filter((r) => r.status === 'completed' && String(r.traderId) === String(user?.id) && filterByPeriod(r.completedAt || r.createdAt, payoutsPeriod))
     .reduce((sum, r) => sum + (r.amount || 0), 0);
 
   const PeriodSelect = ({ period, setPeriod, show, setShow, dataAttr }) => (
