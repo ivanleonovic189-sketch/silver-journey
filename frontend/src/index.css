@@ -1,5 +1,5 @@
 :root {
-  /* Тёмная тема — чистый нейтральный графит + один акцент (синий) */
+  /* Тёмная тема: чистый нейтральный графит + один акцент (синий) */
   --bg: #0d0e11;
   --bg-deep: #0a0b0d;
   --bg-card: #15171c;
@@ -7,7 +7,7 @@
   --bg-header: #0f1014;
   --bg-nav: #0f1014;
 
-  /* Границы — нейтральные (не оранжевые) */
+  /* Границы нейтральные (не оранжевые) */
   --border: rgba(255, 255, 255, 0.09);
   --border-light: rgba(255, 255, 255, 0.055);
 
@@ -23,7 +23,7 @@
   --primary: var(--accent);
   --primary-hover: var(--accent-hover);
 
-  /* «Положительные» состояния держим в фирменном оранжевом — никакой радуги */
+  /* «Положительные» состояния держим в фирменном оранжевом, никакой радуги */
   --success: var(--accent);
   --green: var(--accent);
   --green-bright: var(--accent);
@@ -40,7 +40,7 @@
   --shadow-md: 0 14px 34px -18px rgba(0, 0, 0, 0.62);
 }
 
-/* Светлая тема — чистая нейтральная бумага */
+/* Светлая тема: чистая нейтральная бумага */
 [data-theme="light"] {
   --bg: #f5f6f8;
   --bg-deep: #eceef2;
@@ -94,7 +94,7 @@ body {
   color: var(--text);
   line-height: 1.55;
   letter-spacing: -0.006em;
-  /* Цифры одинаковой ширины — суммы и таблицы держат сетку */
+  /* Цифры одинаковой ширины: суммы и таблицы держат сетку */
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -129,7 +129,7 @@ button, input, select, textarea {
   background: transparent;
 }
 
-/* Волны в #ep-waves-mount — под приложением */
+/* Волны в #ep-waves-mount, под приложением */
 #ep-waves-mount {
   position: fixed;
   inset: 0;
@@ -246,7 +246,7 @@ body.ep-has-waves #root {
   }
 }
 
-/* Шапка кабинета — стекло, волны слегка просвечивают */
+/* Шапка кабинета: стекло, волны слегка просвечивают */
 .ep-topnav {
   background: color-mix(in srgb, var(--bg-nav) 72%, transparent);
   backdrop-filter: blur(14px);
@@ -437,7 +437,7 @@ body.ep-has-waves #root {
   }
 }
 
-/* Стилизация скроллбара — нейтральная, тёплая */
+/* Стилизация скроллбара: нейтральная, тёплая */
 ::-webkit-scrollbar {
   width: 12px;
   height: 12px;
@@ -482,7 +482,7 @@ body.ep-has-waves #root {
   isolation: isolate;
 }
 
-/* Мягкие цветовые пятна за волнами — P2P: синий (платёж), зелёный (успех), бирюза (поток) */
+/* Мягкие цветовые пятна за волнами: P2P синий (платёж), зелёный (успех), бирюза (поток) */
 .ep-waves__color {
   position: absolute;
   inset: 0;

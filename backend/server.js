@@ -370,7 +370,7 @@ app.get('/api/referral', requireAuth, (req, res) => {
     return res.status(403).json({ error: 'Реферальная программа недоступна' });
   }
   const code = ensureUserReferralCode(db, req.user);
-  const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const baseUrl = process.env.FRONTEND_URL || 'https://enterpay.netlify.app';
   const referralLink = code ? `${baseUrl}#ref=${encodeURIComponent(code)}` : null;
   res.json({
     referralLink,
@@ -384,7 +384,7 @@ app.patch('/api/referral/set-code', requireAuth, (_req, res) => {
   res.status(410).json({ error: 'Реферальный код формируется автоматически по вашему нику' });
 });
 
-// Выход (JWT — stateless, клиент удаляет токен)
+// Выход (JWT stateless, клиент удаляет токен)
 app.post('/api/auth/logout', requireAuth, (_req, res) => {
   res.json({ success: true });
 });

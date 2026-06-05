@@ -158,7 +158,7 @@ export default function Dashboard({
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
 
-  // Конверсия: если есть наши устройства — показываем их; иначе — по методам оплаты
+  // Конверсия: если есть наши устройства, показываем их; иначе по методам оплаты
   const conversionData = merchantDevices.length > 0
     ? merchantDevices.map((device) => {
         const methodTxs = transactions.filter((t) => t.paymentMethod === device.type);
@@ -491,7 +491,7 @@ export default function Dashboard({
             </div>
           </div>
 
-          {/* Процентная ставка — ступенчатый список */}
+          {/* Процентная ставка, ступенчатый список */}
             <div style={{ marginTop: '1.5rem' }}>
               <div style={{ 
                 fontSize: '0.9rem',
@@ -575,7 +575,7 @@ export default function Dashboard({
         {/* Правая колонка: график + боковая панель */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-          {/* График дохода — справа, горизонтальные полоски */}
+          {/* График дохода справа, горизонтальные полоски */}
           <div
             style={{
               background: 'var(--bg-card)',

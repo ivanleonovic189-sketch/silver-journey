@@ -162,7 +162,7 @@ export default function Payouts({
     setCancelDelay(10);
   };
 
-  // Отдельная страница: оплата заявки — на всю ширину
+  // Отдельная страница: оплата заявки на всю ширину
   if (showRequisites && selectedRequest) {
     const req = selectedRequest;
     return (

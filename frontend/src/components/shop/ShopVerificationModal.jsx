@@ -79,9 +79,6 @@ export default function ShopVerificationModal({ verificationCode, userName, onLo
         >
           {userName ? `${userName}, подтвердите аккаунт` : 'Подтвердите аккаунт'}
         </h2>
-        <p style={{ margin: '0 0 1.5rem', color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.55 }}>
-          Для продолжения работы с Enter Pay нужна проверка вашего магазина. Напишите в Telegram и укажите код ниже.
-        </p>
 
         <div
           style={{
