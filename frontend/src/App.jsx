@@ -233,7 +233,7 @@ export default function App() {
   }, [token, user]);
 
   useEffect(() => {
-    if (!loading && user && sessionStorage.getItem('enterPayShowWelcome') === '1') {
+    if (!loading && user && user.role !== 'shop' && sessionStorage.getItem('enterPayShowWelcome') === '1') {
       sessionStorage.removeItem('enterPayShowWelcome');
       setShowWelcomeModal(true);
     }

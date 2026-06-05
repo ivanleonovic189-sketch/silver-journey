@@ -64,7 +64,7 @@ export default function ShopApi({ token, stats }) {
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Merchant ID</label>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input style={inputStyle} readOnly value={String(integration?.merchantId || stats?.merchantId || '—')} />
+            <input style={inputStyle} readOnly value={String(integration?.merchantId || stats?.merchantId || 'нет')} />
             <button type="button" onClick={() => copy(String(integration?.merchantId || stats?.merchantId), 'mid')} style={{ padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-card-hover)', cursor: 'pointer', color: 'var(--text)' }}>
               {copied === 'mid' ? 'OK' : 'Копировать'}
             </button>

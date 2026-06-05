@@ -42,7 +42,7 @@ export default function ShopDeposits({ transactions }) {
                     <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text)' }}>
                       {Number(t.amount).toLocaleString('ru-RU')} {t.currency || '₽'}
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{t.paymentMethod || '—'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{t.paymentMethod || 'нет'}</td>
                     <td style={{ padding: '0.75rem 1rem', color: t.status === 'completed' ? 'var(--positive)' : 'var(--text-muted)' }}>
                       {STATUS[t.status] || t.status}
                     </td>

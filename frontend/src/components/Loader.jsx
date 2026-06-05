@@ -1,4 +1,4 @@
-export default function Loader({ user }) {
+export default function Loader({ user, subtitle }) {
   const blockCopy = (e) => e.preventDefault();
 
   return (
@@ -48,7 +48,7 @@ export default function Loader({ user }) {
         </span>
       </div>
       <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', position: 'relative', zIndex: 1 }}>
-        Загружаем ваш кабинет…
+        {subtitle || 'Загружаем ваш кабинет…'}
       </p>
     </div>
   );

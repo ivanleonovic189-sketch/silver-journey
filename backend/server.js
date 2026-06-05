@@ -117,6 +117,30 @@ function findDbUser(db, userId) {
   return (db.users || []).find((us) => String(us.id) === String(userId));
 }
 
+function generateVerificationCode() {
+  return `EP-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+}
+
+function isShopVerified(user) {
+  if (!user || user.role !== 'shop') return true;
+  return user.verified === true;
+}
+
+function ensureShopVerificationFields(db, user) {
+  if (!user || user.role !== 'shop') return user;
+  let changed = false;
+  if (user.verified !== true && user.verified !== false) {
+    user.verified = false;
+    changed = true;
+  }
+  if (!user.verified && !user.verificationCode) {
+    user.verificationCode = generateVerificationCode();
+    changed = true;
+  }
+  if (changed) saveDb(db);
+  return user;
+}
+
 // Регистрация
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -154,6 +178,8 @@ app.post('/api/auth/register', async (req, res) => {
     referralCode: null,
     referrerId: referrerId,
     createdAt: new Date().toISOString(),
+    verified: role === 'shop' ? false : true,
+    verificationCode: role === 'shop' ? generateVerificationCode() : null,
   };
   
   db.users.push(user);
@@ -223,9 +249,20 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   if (req.user.role === 'shop') {
     ensureShopMerchant(db, req.user);
   }
-  const u = findDbUser(db, req.user.id) || req.user;
+  let u = findDbUser(db, req.user.id) || req.user;
+  if (u.role === 'shop') {
+    u = ensureShopVerificationFields(db, u);
+  }
   const { password: _, ...userPublic } = u;
-  res.json({ user: userPublic });
+  res.json({
+    user: userPublic,
+    verification: u.role === 'shop'
+      ? {
+          verified: isShopVerified(u),
+          code: u.verified ? null : u.verificationCode,
+        }
+      : null,
+  });
 });
 
 // Реферальная программа
@@ -269,6 +306,41 @@ app.patch('/api/referral/set-code', requireAuth, (req, res) => {
 // Выход (JWT — stateless, клиент удаляет токен)
 app.post('/api/auth/logout', requireAuth, (_req, res) => {
   res.json({ success: true });
+});
+
+// Подтверждение аккаунта казино (админ / вручную через секрет)
+app.post('/api/admin/verify-user', (req, res) => {
+  const adminSecret = process.env.ADMIN_VERIFY_SECRET;
+  if (!adminSecret) {
+    return res.status(503).json({ error: 'ADMIN_VERIFY_SECRET не настроен на сервере' });
+  }
+  const hdr = req.headers['x-admin-secret'] || req.body?.secret;
+  if (hdr !== adminSecret) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const db = getDb();
+  const { userId, email } = req.body || {};
+  let u = null;
+  if (userId != null) {
+    u = findDbUser(db, userId);
+  } else if (email) {
+    const emailNorm = String(email).toLowerCase().trim();
+    u = (db.users || []).find((us) => us.email === emailNorm);
+  }
+  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
+  if (u.role !== 'shop') {
+    return res.status(400).json({ error: 'Подтверждение только для роли shop (казино)' });
+  }
+  u.verified = true;
+  u.verifiedAt = new Date().toISOString();
+  saveDb(db);
+  res.json({
+    ok: true,
+    userId: u.id,
+    email: u.email,
+    name: u.name,
+    verified: true,
+  });
 });
 
 // ========== НАСТРОЙКИ (паблишер / казино) ==========
@@ -809,6 +881,12 @@ app.get('/api/payout-requests', requireAuth, (req, res) => {
 app.post('/api/payout-requests', requireAuth, (req, res) => {
   const db = getDb();
   initPayoutRequests(db);
+  if (req.user.role === 'shop') {
+    const u = ensureShopVerificationFields(db, findDbUser(db, req.user.id) || req.user);
+    if (!isShopVerified(u)) {
+      return res.status(403).json({ error: 'Аккаунт не подтверждён. Напишите в Telegram @d33dd33d' });
+    }
+  }
   if (req.user.role === 'merchant') {
     return res.status(403).json({ error: 'Трейдеры создают выплаты через принятие заявок, а не через API казино' });
   }

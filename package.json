@@ -6,7 +6,8 @@
     "dev": "concurrently -k -n api,web -c blue,green \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "node backend/server.js",
     "dev:frontend": "cd frontend && npm run dev",
-    "install:all": "npm install && cd frontend && npm install"
+    "install:all": "npm install && cd frontend && npm install",
+    "verify:shop": "node scripts/verify-shop-user.js"
   },
   "dependencies": {
     "@netlify/blobs": "^8.1.0",

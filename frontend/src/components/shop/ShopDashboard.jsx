@@ -108,7 +108,7 @@ export default function ShopDashboard({ stats, user, withdrawals, onTabChange })
                     #{r.id} · {Number(r.amount).toLocaleString('ru-RU')} ₽
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {r.bank || '—'} · {r.externalId ? `Игрок ${r.externalId}` : 'Без ID игрока'}
+                    {r.bank || 'нет'} · {r.externalId ? `Игрок ${r.externalId}` : 'Без ID игрока'}
                   </div>
                 </div>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>

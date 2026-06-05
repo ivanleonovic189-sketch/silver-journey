@@ -67,7 +67,7 @@ export default function ShopWithdrawals({ getAuthHeaders, withdrawals, onCreated
         Выводы игроков
       </h2>
       <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-        Создайте заявку на вывод — её подхватит трейдер Enter Pay.
+        Создайте заявку на вывод. Её подхватит трейдер Enter Pay.
       </p>
 
       <div
@@ -164,7 +164,7 @@ export default function ShopWithdrawals({ getAuthHeaders, withdrawals, onCreated
                   return (
                     <tr key={r.id} style={{ borderTop: '1px solid var(--border-light)' }}>
                       <td style={{ padding: '0.75rem 1rem', color: 'var(--text)' }}>#{r.id}</td>
-                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{r.externalId || '—'}</td>
+                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{r.externalId || 'нет'}</td>
                       <td style={{ padding: '0.75rem 1rem', color: 'var(--text)', fontWeight: 600 }}>
                         {Number(r.amount).toLocaleString('ru-RU')} ₽
                       </td>
