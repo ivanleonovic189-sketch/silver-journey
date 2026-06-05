@@ -243,7 +243,6 @@ export default function App() {
   const verifyToken = async (authToken) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
-    const cachedUser = readStoredSession().user;
     try {
       const res = await fetch(`${API}/api/auth/me`, {
         headers: {
@@ -262,17 +261,11 @@ export default function App() {
             userData.verificationCode = data.verification.code;
           }
         }
-        if (
-          userData.role === 'shop' &&
-          userData.verified !== true &&
-          !userData.verificationCode &&
-          cachedUser?.verificationCode
-        ) {
-          userData.verificationCode = cachedUser.verificationCode;
-        }
         setUser(userData);
+        setToken(authToken);
+        localStorage.setItem('enterPayToken', authToken);
         localStorage.setItem('enterPayUser', JSON.stringify(userData));
-      } else if (res.status === 401) {
+      } else {
         localStorage.removeItem('enterPayToken');
         localStorage.removeItem('enterPayUser');
         setToken(null);
@@ -280,7 +273,12 @@ export default function App() {
         setLoading(false);
       }
     } catch (err) {
-      console.warn('Не удалось проверить сессию, используем сохраненные данные:', err);
+      console.warn('Не удалось проверить сессию:', err);
+      localStorage.removeItem('enterPayToken');
+      localStorage.removeItem('enterPayUser');
+      setToken(null);
+      setUser(null);
+      setLoading(false);
     } finally {
       clearTimeout(timeout);
     }

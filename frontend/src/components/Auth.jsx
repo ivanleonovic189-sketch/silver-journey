@@ -71,6 +71,8 @@ function Auth({ onLogin, referralCode: initialReferralCode }) {
       const data = await res.json();
 
       if (res.ok) {
+        localStorage.removeItem('enterPayToken');
+        localStorage.removeItem('enterPayUser');
         const userData = { ...data.user };
         if (data.verification) {
           userData.verified = data.verification.verified;

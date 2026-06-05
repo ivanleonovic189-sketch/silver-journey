@@ -37,18 +37,29 @@ const defaultData = {
   config: { name: 'Enter Pay', currency: '₽' },
 };
 
+function sanitizeSeedForServerless(data) {
+  if (!data || typeof data !== 'object') return { ...defaultData };
+  return {
+    ...defaultData,
+    config: data.config || defaultData.config,
+    shopProducts: Array.isArray(data.shopProducts) ? data.shopProducts : [],
+    paymentMethods: Array.isArray(data.paymentMethods) ? data.paymentMethods : [],
+  };
+}
+
 function readSeedDb() {
   const seedPath = getSeedPath();
   if (!seedPath) return { ...defaultData };
   try {
-    return JSON.parse(fs.readFileSync(seedPath, 'utf8'));
+    const parsed = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
+    return isServerless ? sanitizeSeedForServerless(parsed) : parsed;
   } catch {
     return { ...defaultData };
   }
 }
 
 function nextId(arr) {
-  const max = arr.length ? Math.max(...arr.map((x) => x.id)) : 0;
+  const max = arr.length ? Math.max(...arr.map((x) => Number(x.id) || 0)) : 0;
   return max + 1;
 }
 
@@ -67,6 +78,12 @@ async function saveToBlob(data) {
   await store.setJSON(BLOB_KEY, data);
 }
 
+function writeLocalCopy(data) {
+  const dbPath = getDbPath();
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
+}
+
 async function initDbAsync() {
   if (!isServerless) return initDb();
   if (memoryCache) return memoryCache;
@@ -75,25 +92,37 @@ async function initDbAsync() {
 
   try {
     const blob = await loadFromBlob();
-    if (blob && Array.isArray(blob.users) && blob.users.length > 0) {
-      memoryCache = blob;
-      return memoryCache;
-    }
-    if (blob) {
+    if (blob && typeof blob === 'object') {
       memoryCache = {
+        ...defaultData,
         ...seed,
         ...blob,
-        users: [...(seed.users || []), ...(blob.users || [])].filter(
-          (u, i, arr) => arr.findIndex((x) => x.email === u.email) === i
-        ),
+        config: { ...defaultData.config, ...seed.config, ...(blob.config || {}) },
+        shopProducts: Array.isArray(blob.shopProducts) && blob.shopProducts.length
+          ? blob.shopProducts
+          : seed.shopProducts,
+        paymentMethods: Array.isArray(blob.paymentMethods) && blob.paymentMethods.length
+          ? blob.paymentMethods
+          : seed.paymentMethods,
+        users: Array.isArray(blob.users) ? blob.users : [],
+        sessions: Array.isArray(blob.sessions) ? blob.sessions : [],
+        transactions: Array.isArray(blob.transactions) ? blob.transactions : [],
+        merchants: Array.isArray(blob.merchants) ? blob.merchants : [],
+        merchantDevices: Array.isArray(blob.merchantDevices) ? blob.merchantDevices : [],
+        kycVerifications: Array.isArray(blob.kycVerifications) ? blob.kycVerifications : [],
+        payoutRequests: Array.isArray(blob.payoutRequests) ? blob.payoutRequests : [],
+        shopOrders: Array.isArray(blob.shopOrders) ? blob.shopOrders : [],
+        shopAppeals: Array.isArray(blob.shopAppeals) ? blob.shopAppeals : [],
       };
+      writeLocalCopy(memoryCache);
       return memoryCache;
     }
   } catch (err) {
     console.error('Blob load failed:', err);
   }
 
-  memoryCache = seed;
+  memoryCache = { ...defaultData, ...seed };
+  writeLocalCopy(memoryCache);
   try {
     await saveToBlob(memoryCache);
   } catch (err) {
@@ -113,11 +142,24 @@ function loadDb() {
   }
 }
 
+async function reloadDbFromBlob() {
+  if (!isServerless) return loadDb();
+  try {
+    const blob = await loadFromBlob();
+    if (blob && typeof blob === 'object') {
+      memoryCache = blob;
+      writeLocalCopy(blob);
+      return memoryCache;
+    }
+  } catch (err) {
+    console.error('Blob reload failed:', err);
+  }
+  return memoryCache || loadDb();
+}
+
 function saveDb(data) {
   memoryCache = data;
-  const dbPath = getDbPath();
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
+  writeLocalCopy(data);
 
   if (isServerless) {
     saveToBlob(data).catch((err) => console.error('Blob save failed:', err));
@@ -126,15 +168,14 @@ function saveDb(data) {
 
 async function saveDbAsync(data) {
   memoryCache = data;
-  const dbPath = getDbPath();
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
+  writeLocalCopy(data);
 
   if (isServerless) {
     try {
       await saveToBlob(data);
     } catch (err) {
       console.error('Blob save failed (non-fatal):', err);
+      throw err;
     }
   }
 }
@@ -168,4 +209,15 @@ function ensureDbReady() {
   return initPromise;
 }
 
-module.exports = { initDb, initDbAsync, ensureDbReady, getDb, loadDb, saveDb, saveDbAsync, nextId };
+module.exports = {
+  initDb,
+  initDbAsync,
+  ensureDbReady,
+  reloadDbFromBlob,
+  getDb,
+  loadDb,
+  saveDb,
+  saveDbAsync,
+  nextId,
+  isServerless,
+};

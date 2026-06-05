@@ -3,7 +3,16 @@ const cors = require('cors');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { initDb, getDb, saveDb, saveDbAsync, nextId, ensureDbReady } = require('./db');
+const {
+  initDb,
+  getDb,
+  saveDb,
+  saveDbAsync,
+  nextId,
+  ensureDbReady,
+  reloadDbFromBlob,
+  isServerless,
+} = require('./db');
 const { createAuthToken, parseAuthToken } = require('./auth-token');
 
 const envPath = path.join(__dirname, '.env');
@@ -66,6 +75,7 @@ if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
   app.use(async (req, res, next) => {
     try {
       await ensureDbReady();
+      await reloadDbFromBlob();
       next();
     } catch (err) {
       console.error('DB init error:', err);
@@ -80,12 +90,16 @@ function resolveUserFromToken(token) {
   const jwt = parseAuthToken(token);
   if (jwt?.user) {
     const db = getDb();
-    const dbUser = db.users?.find((u) => String(u.id) === String(jwt.user.id));
+    const dbUser = db.users?.find(
+      (u) =>
+        String(u.id) === String(jwt.user.id) &&
+        String(u.email || '').toLowerCase() === String(jwt.user.email || '').toLowerCase()
+    );
     if (dbUser) {
       const { password, ...safe } = dbUser;
       return safe;
     }
-    return jwt.user;
+    return null;
   }
 
   const db = getDb();
@@ -230,7 +244,8 @@ function ensureUserReferralCode(db, user) {
 // Регистрация
 app.post('/api/auth/register', async (req, res) => {
   try {
-  const db = getDb();
+  await ensureDbReady();
+  const db = isServerless ? await reloadDbFromBlob() : getDb();
   const { email, password, name, telegram, role, referralCode } = req.body || {};
   
   if (!email || !password || !name || !telegram || !role) {
@@ -286,7 +301,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
   }
   
-  saveDb(db);
+  await saveDbAsync(db);
 
   const { password: _, ...userPublic } = user;
   if (role === 'shop') {
@@ -308,7 +323,8 @@ app.post('/api/auth/register', async (req, res) => {
 // Логин
 app.post('/api/auth/login', async (req, res) => {
   try {
-  const db = getDb();
+  await ensureDbReady();
+  const db = isServerless ? await reloadDbFromBlob() : getDb();
   const { email, password } = req.body || {};
   
   if (!email || !password) {
@@ -335,6 +351,7 @@ app.post('/api/auth/login', async (req, res) => {
 
   const { password: _, ...userPublic } = user;
   const token = createAuthToken(userPublic);
+  await saveDbAsync(db);
   res.json({
     user: userPublic,
     token,
@@ -735,7 +752,7 @@ function initMerchants(db) {
   if (!Array.isArray(db.merchants)) db.merchants = [];
   const m1 = db.merchants.find(m => m.id === 1);
   if (m1 && m1.userId == null) { m1.userId = 1; saveDb(db); }
-  if (db.merchants.length === 0) {
+  if (!isServerless && db.merchants.length === 0) {
     db.merchants = [
       {
         id: 1,
