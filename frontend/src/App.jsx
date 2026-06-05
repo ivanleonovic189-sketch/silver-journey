@@ -11,6 +11,7 @@ import Ref from './components/Ref';
 import TopNav from './components/TopNav';
 import Loader from './components/Loader';
 import WalletModal from './components/WalletModal';
+import WelcomeModal from './components/WelcomeModal';
 import Settings from './components/Settings';
 
 function readStoredSession() {
@@ -74,6 +75,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showRefModal, setShowRefModal] = useState(false);
   const [usdtRate, setUsdtRate] = useState(() => {
     // Загружаем сохраненный курс из localStorage при инициализации
@@ -218,6 +220,13 @@ export default function App() {
     }
   }, [token, user]);
 
+  useEffect(() => {
+    if (!loading && user && sessionStorage.getItem('enterPayShowWelcome') === '1') {
+      sessionStorage.removeItem('enterPayShowWelcome');
+      setShowWelcomeModal(true);
+    }
+  }, [loading, user]);
+
   const verifyToken = async (authToken) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
@@ -251,10 +260,13 @@ export default function App() {
     }
   };
 
-  const handleLogin = (userData, authToken) => {
+  const handleLogin = (userData, authToken, options = {}) => {
     setLoading(true);
     setUser(userData);
     setToken(authToken);
+    if (options.justRegistered) {
+      sessionStorage.setItem('enterPayShowWelcome', '1');
+    }
   };
 
   const handleLogout = async () => {
@@ -1729,6 +1741,12 @@ export default function App() {
             setShowWalletModal(false);
             setActiveTab('payouts');
           }}
+        />
+      )}
+      {showWelcomeModal && (
+        <WelcomeModal
+          userName={user?.name}
+          onClose={() => setShowWelcomeModal(false)}
         />
       )}
       </div>

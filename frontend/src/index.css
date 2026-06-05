@@ -310,6 +310,13 @@ body.ep-has-waves #root {
   border-radius: 999px;
 }
 
+.ep-no-copy {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
 .ep-topnav__menu {
   display: flex;
   align-items: center;

@@ -62,7 +62,14 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
               Enter <span style={{ color: 'var(--accent)' }}>Pay</span>
             </div>
           </button>
-          <span className="ep-topnav__badge">High-risk</span>
+          <span
+            className="ep-topnav__badge ep-no-copy"
+            onCopy={(e) => e.preventDefault()}
+            onCut={(e) => e.preventDefault()}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            High-risk
+          </span>
         </div>
         </div>
 

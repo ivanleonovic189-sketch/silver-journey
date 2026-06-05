@@ -45,7 +45,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
       if (res.ok) {
         localStorage.setItem('enterPayToken', data.token);
         localStorage.setItem('enterPayUser', JSON.stringify(data.user));
-        onLogin(data.user, data.token);
+        onLogin(data.user, data.token, { justRegistered: !isLogin });
       } else {
         setError(data.error || 'Ошибка авторизации');
       }
@@ -178,7 +178,16 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <form
+          onSubmit={handleSubmit}
+          autoComplete="off"
+          data-lpignore="true"
+          data-1p-ignore
+          data-bwignore
+          style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}
+        >
+          <input type="text" name="prevent_autofill" autoComplete="username" tabIndex={-1} aria-hidden="true" style={{ position: 'absolute', opacity: 0, height: 0, width: 0, pointerEvents: 'none' }} />
+          <input type="password" name="prevent_autofill_pass" autoComplete="new-password" tabIndex={-1} aria-hidden="true" style={{ position: 'absolute', opacity: 0, height: 0, width: 0, pointerEvents: 'none' }} />
           {!isLogin && (
             <>
               <div>
@@ -333,6 +342,13 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
             <input
               type="email"
               required
+              name="enterpay_email"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              data-lpignore="true"
+              data-1p-ignore
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               style={{
@@ -373,6 +389,14 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
             <input
               type="password"
               required
+              name="enterpay_secret"
+              autoComplete="one-time-code"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              data-lpignore="true"
+              data-1p-ignore
+              readOnly
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               style={{
@@ -388,6 +412,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
               }}
               placeholder="••••••••"
               onFocus={(e) => {
+                e.target.removeAttribute('readonly');
                 e.target.style.borderColor = 'var(--accent)';
                 e.target.style.background = 'var(--bg-card)';
               }}
