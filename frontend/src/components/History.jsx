@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API } from '../api';
 
 const PAYMENT_LABELS = { card_ru: 'Банковская карта РФ', sbp: 'СБП' };
 const STATUS_LABELS = {
@@ -12,8 +13,6 @@ export default function History({ payoutRequests, transactions = [], getAuthHead
   const [filter, setFilter] = useState('all'); // all, payouts, withdrawals, deposits
   const [allRequests, setAllRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const API = import.meta.env.VITE_API_URL || 'http://localhost:3002';
 
   useEffect(() => {
     const fetchAll = async () => {

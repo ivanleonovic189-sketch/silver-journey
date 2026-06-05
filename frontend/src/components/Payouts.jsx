@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API } from '../api';
 import { PayoutsIcon } from './Icons';
 
 const PAYMENT_LABELS = { card_ru: 'Банковская карта РФ', sbp: 'СБП' };
@@ -31,8 +32,6 @@ export default function Payouts({
       setTimeout(() => setCopied(false), 2000);
     });
   };
-
-  const API = import.meta.env.VITE_API_URL || 'http://localhost:3002';
 
   const fetchFiltered = async () => {
     if (!getAuthHeaders) return [];
