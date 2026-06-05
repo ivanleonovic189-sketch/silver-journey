@@ -158,13 +158,13 @@ app.post('/api/auth/register', async (req, res) => {
   
   db.users.push(user);
   
-  if (role === 'merchant') {
-    initMerchants(db);
+  initMerchants(db);
+  if (role === 'merchant' || role === 'shop') {
     const existingMerchant = db.merchants.find(m => String(m.userId) === String(user.id));
     if (!existingMerchant) {
       db.merchants.push({
         id: nextId(db.merchants),
-        name: `${name} (мерчант)`,
+        name: role === 'shop' ? `${name} (казино)` : `${name} (мерчант)`,
         apiKey: 'merchant_' + crypto.randomBytes(16).toString('hex'),
         balance: 0,
         enabled: true,
@@ -220,7 +220,10 @@ app.post('/api/auth/login', async (req, res) => {
 // Получить текущего пользователя
 app.get('/api/auth/me', requireAuth, (req, res) => {
   const db = getDb();
-  const u = db.users.find(us => us.id === req.user.id) || req.user;
+  if (req.user.role === 'shop') {
+    ensureShopMerchant(db, req.user);
+  }
+  const u = findDbUser(db, req.user.id) || req.user;
   const { password: _, ...userPublic } = u;
   res.json({ user: userPublic });
 });
@@ -753,8 +756,29 @@ function initPayoutRequests(db) {
   if (needsSave) saveDb(db);
 }
 
-function scopePayoutRequestsForUser(requests, userId) {
-  const uid = String(userId);
+function ensureShopMerchant(db, user) {
+  if (!user || user.role !== 'shop') return;
+  initMerchants(db);
+  const existing = db.merchants.find((m) => String(m.userId) === String(user.id));
+  if (!existing) {
+    db.merchants.push({
+      id: nextId(db.merchants),
+      name: `${user.name || 'Казино'} (казино)`,
+      apiKey: 'merchant_' + crypto.randomBytes(16).toString('hex'),
+      balance: 0,
+      enabled: true,
+      userId: user.id,
+      createdAt: new Date().toISOString(),
+    });
+    saveDb(db);
+  }
+}
+
+function scopePayoutRequestsForUser(requests, user) {
+  if (user.role === 'shop') {
+    return requests.filter((r) => String(r.shopUserId) === String(user.id));
+  }
+  const uid = String(user.id);
   return requests.filter(
     (r) =>
       r.status === 'pending' ||
@@ -776,7 +800,7 @@ app.get('/api/payout-requests', requireAuth, (req, res) => {
   if (status && status !== 'all') requests = requests.filter(r => r.status === status);
   if (paymentMethod) requests = requests.filter(r => r.paymentMethod === paymentMethod);
 
-  requests = scopePayoutRequestsForUser(requests, req.user.id);
+  requests = scopePayoutRequestsForUser(requests, req.user);
   requests = requests.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   res.json(requests);
 });
@@ -785,7 +809,10 @@ app.get('/api/payout-requests', requireAuth, (req, res) => {
 app.post('/api/payout-requests', requireAuth, (req, res) => {
   const db = getDb();
   initPayoutRequests(db);
-  const { amount, paymentMethod, bank, requisites, currency } = req.body || {};
+  if (req.user.role === 'merchant') {
+    return res.status(403).json({ error: 'Трейдеры создают выплаты через принятие заявок, а не через API казино' });
+  }
+  const { amount, paymentMethod, bank, requisites, currency, externalId } = req.body || {};
   const amountNum = Number(amount);
   if (!amountNum || amountNum < 100) {
     return res.status(400).json({ error: 'Укажите сумму от 100 ₽' });
@@ -795,6 +822,10 @@ app.post('/api/payout-requests', requireAuth, (req, res) => {
   }
   if (!requisites) return res.status(400).json({ error: 'Укажите requisites' });
 
+  if (req.user.role === 'shop') {
+    ensureShopMerchant(db, req.user);
+  }
+
   const request = {
     id: nextId(db.payoutRequests),
     amount: amountNum,
@@ -802,6 +833,8 @@ app.post('/api/payout-requests', requireAuth, (req, res) => {
     paymentMethod,
     bank: bank ? String(bank) : '',
     requisites: String(requisites),
+    externalId: externalId ? String(externalId).slice(0, 64) : null,
+    shopUserId: req.user.role === 'shop' ? req.user.id : req.body.shopUserId || null,
     status: 'pending',
     createdAt: new Date().toISOString(),
   };
@@ -812,6 +845,9 @@ app.post('/api/payout-requests', requireAuth, (req, res) => {
 
 // Трейдер принимает заявку
 app.post('/api/payout-requests/:id/accept', requireAuth, (req, res) => {
+  if (req.user.role === 'shop') {
+    return res.status(403).json({ error: 'Казино не может принимать заявки на выплату' });
+  }
   const db = getDb();
   initPayoutRequests(db);
   const id = parseInt(req.params.id, 10);
@@ -829,6 +865,9 @@ app.post('/api/payout-requests/:id/accept', requireAuth, (req, res) => {
 
 // Трейдер завершает выплату (загружает чек)
 app.patch('/api/payout-requests/:id/complete', requireAuth, (req, res) => {
+  if (req.user.role === 'shop') {
+    return res.status(403).json({ error: 'Казино не может завершать заявки трейдеров' });
+  }
   const db = getDb();
   initPayoutRequests(db);
   initMerchants(db);
@@ -907,6 +946,9 @@ app.patch('/api/payout-requests/:id/complete', requireAuth, (req, res) => {
 
 // Трейдер отменяет принятую заявку
 app.post('/api/payout-requests/:id/cancel', requireAuth, (req, res) => {
+  if (req.user.role === 'shop') {
+    return res.status(403).json({ error: 'Казино не может отменять заявки трейдеров' });
+  }
   const db = getDb();
   const id = parseInt(req.params.id, 10);
   const request = db.payoutRequests.find(r => r.id === id);
@@ -1045,6 +1087,35 @@ app.get('/api/stats', requireAuth, (req, res) => {
   initPayoutRequests(db);
   const merchant = getUserMerchant(db, req.user.id);
   const balance = merchant?.balance ?? 0;
+
+  if (req.user.role === 'shop') {
+    ensureShopMerchant(db, req.user);
+    const shopPayouts = (db.payoutRequests || []).filter(
+      (r) => String(r.shopUserId) === String(req.user.id)
+    );
+    const transactions = getUserTransactions(db, req.user.id);
+    const deposits = transactions.filter(
+      (t) => t.type === 'deposit' || t.type === 'merchant_deposit' || t.direction === 'in'
+    );
+    const completedWithdrawals = shopPayouts.filter((r) => r.status === 'completed');
+    const stats = {
+      role: 'shop',
+      balance,
+      merchantId: merchant?.id ?? null,
+      withdrawalsTotal: shopPayouts.length,
+      withdrawalsPending: shopPayouts.filter((r) => r.status === 'pending').length,
+      withdrawalsInProgress: shopPayouts.filter((r) => r.status === 'in_progress').length,
+      withdrawalsCompleted: completedWithdrawals.length,
+      withdrawalsVolume: completedWithdrawals.reduce((s, r) => s + (r.amount || 0), 0),
+      depositsCount: deposits.filter((t) => t.status === 'completed').length,
+      depositsVolume: deposits
+        .filter((t) => t.status === 'completed')
+        .reduce((s, t) => s + (t.amount || 0), 0),
+      depositsPending: deposits.filter((t) => t.status === 'pending').length,
+    };
+    return res.json(stats);
+  }
+
   const transactions = getUserTransactions(db, req.user.id);
   const payoutRequests = db.payoutRequests || [];
   const userPayouts = payoutRequests.filter((r) => String(r.traderId) === String(req.user.id));

@@ -14,6 +14,7 @@ import WalletModal from './components/WalletModal';
 import WelcomeModal from './components/WelcomeModal';
 import Settings from './components/Settings';
 import Shop from './components/Shop';
+import ShopApp from './components/shop/ShopApp';
 
 function readStoredSession() {
   const savedToken = localStorage.getItem('enterPayToken');
@@ -193,6 +194,10 @@ export default function App() {
   // Загрузка данных после авторизации + прелоадер (не дольше 5 сек)
   useEffect(() => {
     if (token && user) {
+      if (user.role === 'shop') {
+        setLoading(false);
+        return undefined;
+      }
       let cancelled = false;
       const load = async () => {
         try {
@@ -629,6 +634,24 @@ export default function App() {
       <div className="ep-shell">
         <Auth onLogin={handleLogin} referralCode={referralCode} />
       </div>
+    );
+  }
+
+  if (user?.role === 'shop') {
+    return (
+      <ShopApp
+        user={user}
+        token={token}
+        onLogout={handleLogout}
+        theme={theme}
+        onThemeToggle={toggleTheme}
+        onUserUpdate={(profile) => {
+          if (profile) {
+            setUser((u) => ({ ...u, ...profile }));
+            localStorage.setItem('enterPayUser', JSON.stringify({ ...user, ...profile }));
+          }
+        }}
+      />
     );
   }
 

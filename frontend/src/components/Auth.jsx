@@ -324,31 +324,25 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
                   }}
                 >
                   {[
-                    { value: 'merchant', label: 'Мерчант' },
-                    { value: 'shop', label: 'Магазин', disabled: true },
+                    { value: 'merchant', label: 'Трейдер' },
+                    { value: 'shop', label: 'Казино' },
                   ].map((option) => (
                     <button
                       key={option.value}
                       type="button"
-                      disabled={option.disabled}
-                      onClick={() => {
-                        if (!option.disabled) {
-                          setFormData({ ...formData, role: option.value });
-                        }
-                      }}
+                      onClick={() => setFormData({ ...formData, role: option.value })}
                       style={{
                         flex: 1,
                         padding: '0.875rem 1rem',
                         background: formData.role === option.value ? 'var(--bg-card)' : 'var(--bg-card-hover)',
                         border: formData.role === option.value ? '1px solid var(--accent)' : '1px solid var(--border-light)',
                         borderRadius: '8px',
-                        color: option.disabled ? 'var(--text-light)' : formData.role === option.value ? 'var(--text)' : 'var(--text-muted)',
+                        color: formData.role === option.value ? 'var(--text)' : 'var(--text-muted)',
                         fontWeight: formData.role === option.value ? 600 : 400,
-                        cursor: option.disabled ? 'not-allowed' : 'pointer',
+                        cursor: 'pointer',
                         fontSize: '0.95rem',
                         transition: 'all 0.15s',
                         boxShadow: formData.role === option.value ? '0 1px 3px rgba(0, 0, 0, 0.05)' : 'none',
-                        opacity: option.disabled ? 0.55 : 1,
                       }}
                     >
                       {option.label}
