@@ -1057,133 +1057,179 @@ app.get('/api/stats', requireAuth, (req, res) => {
 
 // ========== МАГАЗИН (P2P для питупишеров) ==========
 
-function initShopProducts(db) {
-  if (!Array.isArray(db.shopProducts)) db.shopProducts = [];
-  if (db.shopProducts.length > 0) return;
+const SHOP_CATALOG_VERSION = 2;
 
-  db.shopProducts = [
+function getShopCatalog() {
+  return [
     {
       id: 1,
       title: 'Мануал: Старт в P2P для казино',
-      description: 'Пошаговый гайд: подключение к Enter Pay, настройка устройств, первые выплаты и типичные ошибки новичков.',
+      description: 'Подключение к Enter Pay, устройства, первые выплаты и типичные ошибки новичков.',
       category: 'manuals',
-      price: 4990,
+      price: 3500,
       currency: '₽',
       badge: 'Старт',
-      delivery: 'PDF + Telegram',
+      image: '/shop/manual.svg',
+      deliveryType: 'download',
+      fileUrl: '/shop/manuals/p2p-start.md',
       enabled: true,
     },
     {
       id: 2,
       title: 'Мануал: Anti-fraud и безопасность',
-      description: 'Как не словить блок, работа с лимитами, страховой депозит, апелляции и общение с риск-отделом.',
+      description: 'Лимиты, апелляции, триггеры блокировок и чек-лист безопасности трейдера.',
       category: 'manuals',
-      price: 7990,
+      price: 6500,
       currency: '₽',
       badge: null,
-      delivery: 'PDF + Telegram',
+      image: '/shop/manual.svg',
+      deliveryType: 'download',
+      fileUrl: '/shop/manuals/antifraud.md',
       enabled: true,
     },
     {
       id: 3,
       title: 'Мануал: Масштабирование команды',
-      description: 'Найм трейдеров, распределение трафика, контроль конверсии и вывод команды на стабильный объём.',
+      description: 'Найм трейдеров, распределение трафика, KPI и выход на стабильный объём.',
       category: 'manuals',
-      price: 12990,
+      price: 9900,
       currency: '₽',
       badge: 'Pro',
-      delivery: 'PDF + Telegram',
+      image: '/shop/manual.svg',
+      deliveryType: 'download',
+      fileUrl: '/shop/manuals/scaling.md',
       enabled: true,
     },
     {
       id: 4,
       title: 'ЛК Сбербанк (физлицо)',
-      description: 'Личный кабинет Сбербанка под P2P: регистрация, СБП, лимиты. Проверенный аккаунт, сопровождение 30 дней.',
+      description: 'Готовый ЛК Сбербанка под P2P: СБП, карта, лимиты до 600 000 ₽/мес. Сопровождение 30 дней.',
       category: 'bank_lk',
-      price: 18000,
+      price: 32000,
       currency: '₽',
       badge: 'Хит',
-      delivery: 'Telegram',
+      image: '/banks/sber.svg',
+      bankName: 'Сбербанк',
+      deliveryType: 'bank_lk',
       enabled: true,
     },
     {
       id: 5,
       title: 'ЛК Т-Банк (физлицо)',
-      description: 'Готовый личный кабинет Т-Банка для приёма и отправки. Подходит под средний и высокий чек.',
+      description: 'Личный кабинет Т-Банка для среднего и высокого чека. Быстрые переводы и СБП.',
       category: 'bank_lk',
-      price: 15000,
+      price: 26000,
       currency: '₽',
       badge: null,
-      delivery: 'Telegram',
+      image: '/banks/tbank.svg',
+      bankName: 'Т-Банк',
+      deliveryType: 'bank_lk',
       enabled: true,
     },
     {
       id: 6,
       title: 'ЛК ВТБ + СБП',
-      description: 'Комплект: личный кабинет ВТБ с подключённым СБП. Быстрый старт для нового трейдера.',
+      description: 'ЛК ВТБ с подключённым СБП. Оптимален для старта и средних объёмов.',
       category: 'bank_lk',
-      price: 14500,
+      price: 22000,
       currency: '₽',
       badge: null,
-      delivery: 'Telegram',
+      image: '/banks/vtb.svg',
+      bankName: 'ВТБ',
+      deliveryType: 'bank_lk',
       enabled: true,
     },
     {
       id: 7,
       title: 'Пакет: 5 ЛК под трафик',
-      description: 'Набор из 5 личных кабинетов разных банков под ваш объём. Скидка против покупки по одному.',
+      description: 'Сбер, Т-Банк, ВТБ, Альфа и Ozon — комплект из 5 ЛК. Экономия ~20% к рознице.',
       category: 'packs',
-      price: 65000,
+      price: 95000,
       currency: '₽',
-      badge: '−28%',
-      delivery: 'Telegram',
-      enabled: true,
-    },
-    {
-      id: 8,
-      title: 'Консультация 1 час',
-      description: 'Личная консультация с Арсюхой Podmoskovny: разбор вашей схемы, подбор банков и стратегия выхода на объём.',
-      category: 'consulting',
-      price: 5000,
-      currency: '₽',
-      badge: 'Live',
-      delivery: 'Telegram / Zoom',
+      badge: '−20%',
+      image: '/shop/pack.svg',
+      deliveryType: 'pack',
+      packBanks: ['Сбербанк', 'Т-Банк', 'ВТБ', 'Альфа-Банк', 'Ozon Банк'],
       enabled: true,
     },
     {
       id: 9,
       title: 'Чек-лист: Подключение казино к API',
-      description: 'Технический мануал по интеграции сайта казино с Enter Pay: ключи, webhook, тестовые платежи.',
+      description: 'Ключи, webhook, тестовый платёж и переход в production.',
       category: 'manuals',
-      price: 3490,
+      price: 2900,
       currency: '₽',
       badge: null,
-      delivery: 'PDF',
+      image: '/shop/manual.svg',
+      deliveryType: 'download',
+      fileUrl: '/shop/manuals/api-casino.md',
       enabled: true,
     },
     {
       id: 10,
       title: 'ЛК Альфа-Банк + карта',
-      description: 'Личный кабинет Альфа-Банка с активной картой. Под высокочековый трафик.',
+      description: 'ЛК Альфа-Банка с активной картой. Под высокочековый трафик и крупные выплаты.',
       category: 'bank_lk',
-      price: 19500,
+      price: 38000,
       currency: '₽',
       badge: 'Premium',
-      delivery: 'Telegram',
+      image: '/banks/alfa.svg',
+      bankName: 'Альфа-Банк',
+      deliveryType: 'bank_lk',
       enabled: true,
     },
   ];
+}
+
+function buildOrderDelivery(product, orderId) {
+  if (product.deliveryType === 'download' && product.fileUrl) {
+    return {
+      type: 'download',
+      fileUrl: product.fileUrl,
+      fileLabel: 'Скачать материал',
+    };
+  }
+  if (product.deliveryType === 'bank_lk') {
+    const suffix = crypto.randomBytes(4).toString('hex').toUpperCase();
+    return {
+      type: 'bank_lk',
+      bank: product.bankName || product.title,
+      accessId: `EP-${orderId}-${suffix}`,
+      login: `lk_${orderId}_${suffix.toLowerCase()}`,
+      password: crypto.randomBytes(9).toString('base64url'),
+      note: 'Доступ выдан на сайте. Смените пароль при первом входе. Срок: 30 дней.',
+    };
+  }
+  if (product.deliveryType === 'pack') {
+    const banks = product.packBanks || [];
+    return {
+      type: 'pack',
+      accessCode: `PACK-${orderId}`,
+      items: banks.map((bank, i) => ({
+        bank,
+        login: `pack_${orderId}_${i + 1}`,
+        password: crypto.randomBytes(8).toString('base64url'),
+      })),
+      note: 'Все доступы выданы автоматически. Храните данные в безопасном месте.',
+    };
+  }
+  return { type: 'info', message: 'Товар выдан. Подробности в заказе.' };
+}
+
+function initShopProducts(db) {
+  if (!Array.isArray(db.shopProducts)) db.shopProducts = [];
   if (!Array.isArray(db.shopOrders)) db.shopOrders = [];
+  if (!db.config) db.config = { name: 'Enter Pay', currency: '₽' };
+  if (db.config.shopCatalogVersion === SHOP_CATALOG_VERSION) return;
+
+  db.shopProducts = getShopCatalog();
+  db.config.shopCatalogVersion = SHOP_CATALOG_VERSION;
   saveDb(db);
 }
 
 app.get('/api/shop/info', requireAuth, (req, res) => {
   res.json({
-    name: 'Enter Pay Shop',
-    vendor: 'Arsyukha Podmoskovny',
-    tagline: 'Магазин для питупишеров: мануалы, ЛК банков и инструменты под P2P для казино',
-    supportTelegram: '@enterpayrisk_bot',
-    supportChannel: '@enterpayrisk',
+    tagline: 'Мануалы и личные кабинеты банков для P2P под казино. Оплата и выдача — на сайте.',
   });
 });
 
@@ -1227,18 +1273,22 @@ app.post('/api/shop/orders', requireAuth, (req, res) => {
 
   merchant.balance = (merchant.balance || 0) - price;
 
+  const orderId = nextId(db.shopOrders || []);
+  const now = new Date().toISOString();
+  const delivery = buildOrderDelivery(product, orderId);
+
   const order = {
-    id: nextId(db.shopOrders || []),
+    id: orderId,
     userId: req.user.id,
     productId: product.id,
     productTitle: product.title,
     category: product.category,
     amount: price,
     currency: product.currency || '₽',
-    status: 'processing',
-    delivery: product.delivery || 'Telegram',
-    createdAt: new Date().toISOString(),
-    deliveryHint: `Напишите в @enterpayrisk_bot: «Заказ #» + ваш ID. Менеджер: Arsyukha Podmoskovny`,
+    status: 'completed',
+    delivery,
+    createdAt: now,
+    completedAt: now,
   };
 
   if (!Array.isArray(db.shopOrders)) db.shopOrders = [];

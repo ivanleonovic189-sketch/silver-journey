@@ -1,28 +1,119 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API } from '../api';
-import { TG_BOT_URL, TG_CHANNEL_URL } from '../config';
-import TelegramIcon from './TelegramIcon';
+import EnterShopLogo from './EnterShopLogo';
 
 const CATEGORIES = [
   { id: 'all', label: 'Все' },
   { id: 'manuals', label: 'Мануалы' },
   { id: 'bank_lk', label: 'ЛК банков' },
   { id: 'packs', label: 'Пакеты' },
-  { id: 'consulting', label: 'Консультации' },
 ];
 
 const CATEGORY_LABELS = {
   manuals: 'Мануал',
   bank_lk: 'ЛК банка',
   packs: 'Пакет',
-  consulting: 'Консультация',
 };
 
-const STATUS_LABELS = {
-  processing: 'В обработке',
-  completed: 'Выдано',
-  cancelled: 'Отменён',
+const fieldStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '1rem',
+  fontSize: '0.85rem',
+  padding: '0.35rem 0',
+  borderBottom: '1px solid var(--border-light)',
 };
+
+function OrderDelivery({ delivery }) {
+  const [copied, setCopied] = useState('');
+
+  if (!delivery) return null;
+
+  const copy = (text, key) => {
+    navigator.clipboard?.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(''), 2000);
+  };
+
+  const boxStyle = {
+    marginTop: '0.75rem',
+    padding: '1rem',
+    background: 'var(--bg-card-hover)',
+    borderRadius: '10px',
+    border: '1px solid var(--border-light)',
+    fontSize: '0.85rem',
+  };
+
+  if (delivery.type === 'download') {
+    return (
+      <div style={boxStyle}>
+        <a
+          href={delivery.fileUrl}
+          download
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            padding: '0.55rem 1rem',
+            background: 'var(--accent)',
+            color: '#fff',
+            borderRadius: '8px',
+            textDecoration: 'none',
+            fontWeight: 600,
+            fontSize: '0.875rem',
+          }}
+        >
+          {delivery.fileLabel || 'Скачать'}
+        </a>
+      </div>
+    );
+  }
+
+  if (delivery.type === 'bank_lk') {
+    return (
+      <div style={boxStyle}>
+        <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '0.5rem' }}>{delivery.bank}</div>
+        <div style={fieldStyle}>
+          <span style={{ color: 'var(--text-muted)' }}>ID доступа</span>
+          <button type="button" onClick={() => copy(delivery.accessId, 'id')} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 600 }}>
+            {delivery.accessId} {copied === 'id' ? '✓' : ''}
+          </button>
+        </div>
+        <div style={fieldStyle}>
+          <span style={{ color: 'var(--text-muted)' }}>Логин</span>
+          <button type="button" onClick={() => copy(delivery.login, 'login')} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 600 }}>
+            {delivery.login} {copied === 'login' ? '✓' : ''}
+          </button>
+        </div>
+        <div style={fieldStyle}>
+          <span style={{ color: 'var(--text-muted)' }}>Пароль</span>
+          <button type="button" onClick={() => copy(delivery.password, 'pass')} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', fontWeight: 600 }}>
+            {delivery.password} {copied === 'pass' ? '✓' : ''}
+          </button>
+        </div>
+        {delivery.note && <p style={{ margin: '0.75rem 0 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{delivery.note}</p>}
+      </div>
+    );
+  }
+
+  if (delivery.type === 'pack') {
+    return (
+      <div style={boxStyle}>
+        <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '0.5rem' }}>Код пакета: {delivery.accessCode}</div>
+        {(delivery.items || []).map((item, i) => (
+          <div key={i} style={{ marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: i < delivery.items.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
+            <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '0.25rem' }}>{item.bank}</div>
+            <div style={{ color: 'var(--text-muted)' }}>Логин: <span style={{ color: 'var(--text)' }}>{item.login}</span></div>
+            <div style={{ color: 'var(--text-muted)' }}>Пароль: <span style={{ color: 'var(--text)' }}>{item.password}</span></div>
+          </div>
+        ))}
+        {delivery.note && <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{delivery.note}</p>}
+      </div>
+    );
+  }
+
+  return delivery.message ? <div style={boxStyle}>{delivery.message}</div> : null;
+}
 
 export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
   const [info, setInfo] = useState(null);
@@ -53,7 +144,7 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
       if (infoRes.ok) setInfo(await infoRes.json());
       if (prodRes.ok) setProducts(await prodRes.json());
       if (ordRes.ok) setOrders(await ordRes.json());
-    } catch (e) {
+    } catch {
       setError('Не удалось загрузить магазин');
     } finally {
       setLoading(false);
@@ -100,7 +191,6 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
 
   return (
     <div className="ep-page" style={{ maxWidth: '1200px' }}>
-      {/* Шапка магазина */}
       <div
         style={{
           background: 'var(--bg-card)',
@@ -116,41 +206,19 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-            <span
-              style={{
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'var(--accent)',
-                background: 'var(--accent-soft)',
-                padding: '0.2rem 0.55rem',
-                borderRadius: '999px',
-              }}
-            >
-              Enter Pay Shop
-            </span>
-            {info?.vendor && (
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>× {info.vendor}</span>
-            )}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <EnterShopLogo size="lg" />
           </div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text)', margin: '0 0 0.4rem' }}>
-            Магазин
-          </h2>
           <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: '520px', lineHeight: 1.5 }}>
-            {info?.tagline || 'Мануалы, личные кабинеты банков и инструменты для питупишеров в P2P под казино.'}
+            {info?.tagline || 'Мануалы и личные кабинеты банков для P2P. Оплата и выдача — на сайте.'}
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Ваш баланс</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)' }}>
-            {balance.toLocaleString()} ₽
-          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Баланс для покупок</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)' }}>{balance.toLocaleString()} ₽</div>
         </div>
       </div>
 
-      {/* Вкладки */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         <button type="button" onClick={() => setTab('catalog')} style={btnStyle(tab === 'catalog')}>
           Каталог
@@ -158,36 +226,10 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
         <button type="button" onClick={() => setTab('orders')} style={btnStyle(tab === 'orders')}>
           Мои заказы {orders.length > 0 && `(${orders.length})`}
         </button>
-        <a
-          href={TG_CHANNEL_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            ...btnStyle(false),
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            textDecoration: 'none',
-            marginLeft: 'auto',
-          }}
-        >
-          <TelegramIcon size={18} />
-          Канал
-        </a>
       </div>
 
       {error && (
-        <div
-          style={{
-            padding: '0.875rem 1rem',
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.25)',
-            borderRadius: '10px',
-            color: 'var(--error)',
-            marginBottom: '1rem',
-            fontSize: '0.9rem',
-          }}
-        >
+        <div style={{ padding: '0.875rem 1rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '10px', color: 'var(--error)', marginBottom: '1rem', fontSize: '0.9rem' }}>
           {error}
         </div>
       )}
@@ -205,26 +247,11 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
           {loading ? (
             <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Загрузка…</div>
           ) : products.length === 0 ? (
-            <div
-              style={{
-                background: 'var(--bg-card)',
-                borderRadius: '16px',
-                padding: '3rem',
-                textAlign: 'center',
-                color: 'var(--text-muted)',
-                border: '1px solid var(--border-light)',
-              }}
-            >
+            <div style={{ background: 'var(--bg-card)', borderRadius: '16px', padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px solid var(--border-light)' }}>
               В этой категории пока нет товаров
             </div>
           ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '1rem',
-              }}
-            >
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
               {products.map((p) => (
                 <div
                   key={p.id}
@@ -238,60 +265,44 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
                     gap: '0.75rem',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-                    <span
+                  {p.image && (
+                    <div
                       style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 600,
-                        color: 'var(--text-muted)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '14px',
+                        background: 'var(--bg-card-hover)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '0.5rem',
+                        border: '1px solid var(--border-light)',
                       }}
                     >
+                      <img src={p.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       {CATEGORY_LABELS[p.category] || p.category}
                     </span>
                     {p.badge && (
-                      <span
-                        style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 600,
-                          color: 'var(--accent)',
-                          background: 'var(--accent-soft)',
-                          padding: '0.15rem 0.45rem',
-                          borderRadius: '6px',
-                        }}
-                      >
+                      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)', padding: '0.15rem 0.45rem', borderRadius: '6px' }}>
                         {p.badge}
                       </span>
                     )}
                   </div>
-                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text)', lineHeight: 1.35 }}>
-                    {p.title}
-                  </h3>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5, flex: 1 }}>
-                    {p.description}
-                  </p>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-light)' }}>Выдача: {p.delivery}</div>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text)', lineHeight: 1.35 }}>{p.title}</h3>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5, flex: 1 }}>{p.description}</p>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-light)' }}>Мгновенная выдача на сайте</div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.25rem' }}>
                     <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)' }}>
                       {p.price.toLocaleString()} {p.currency || '₽'}
                     </span>
                     <button
                       type="button"
-                      onClick={() => {
-                        setError('');
-                        setSelected(p);
-                      }}
-                      style={{
-                        padding: '0.55rem 1rem',
-                        background: 'var(--accent)',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontWeight: 600,
-                        fontSize: '0.875rem',
-                        cursor: 'pointer',
-                      }}
+                      onClick={() => { setError(''); setSelected(p); }}
+                      style={{ padding: '0.55rem 1rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer' }}
                     >
                       Купить
                     </button>
@@ -308,111 +319,44 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
           {loading ? (
             <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Загрузка…</div>
           ) : orders.length === 0 ? (
-            <div
-              style={{
-                background: 'var(--bg-card)',
-                borderRadius: '16px',
-                padding: '3rem',
-                textAlign: 'center',
-                color: 'var(--text-muted)',
-                border: '1px solid var(--border-light)',
-              }}
-            >
+            <div style={{ background: 'var(--bg-card)', borderRadius: '16px', padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px solid var(--border-light)' }}>
               Заказов пока нет
             </div>
           ) : (
             orders.map((o) => (
-              <div
-                key={o.id}
-                style={{
-                  background: 'var(--bg-card)',
-                  borderRadius: '12px',
-                  border: '1px solid var(--border-light)',
-                  padding: '1.25rem',
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '1rem',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-                    Заказ #{o.id} · {new Date(o.createdAt).toLocaleString('ru')}
+              <div key={o.id} style={{ background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-light)', padding: '1.25rem' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: o.delivery ? 0 : undefined }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                      Заказ #{o.id} · {new Date(o.createdAt).toLocaleString('ru')}
+                    </div>
+                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>{o.productTitle}</div>
                   </div>
-                  <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '0.25rem' }}>{o.productTitle}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{o.deliveryHint}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: '0.35rem' }}>
-                    {o.amount.toLocaleString()} {o.currency || '₽'}
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: '0.35rem' }}>
+                      {o.amount.toLocaleString()} {o.currency || '₽'}
+                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.55rem', borderRadius: '6px', background: 'var(--positive-soft)', color: 'var(--positive)' }}>
+                      Выдано
+                    </span>
                   </div>
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      padding: '0.2rem 0.55rem',
-                      borderRadius: '6px',
-                      background: o.status === 'completed' ? 'var(--positive-soft)' : 'var(--accent-soft)',
-                      color: o.status === 'completed' ? 'var(--positive)' : 'var(--accent)',
-                    }}
-                  >
-                    {STATUS_LABELS[o.status] || o.status}
-                  </span>
                 </div>
+                <OrderDelivery delivery={o.delivery} />
               </div>
             ))
           )}
         </div>
       )}
 
-      {/* Модалка покупки */}
       {selected && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-            padding: '1rem',
-            backdropFilter: 'blur(4px)',
-          }}
-          onClick={() => !buying && setSelected(null)}
-        >
-          <div
-            style={{
-              background: 'var(--bg-card)',
-              borderRadius: '16px',
-              border: '1px solid var(--border-light)',
-              padding: '1.75rem',
-              maxWidth: '440px',
-              width: '100%',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text)' }}>
-              Подтверждение покупки
-            </h3>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '1rem', backdropFilter: 'blur(4px)' }} onClick={() => !buying && setSelected(null)}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-light)', padding: '1.75rem', maxWidth: '440px', width: '100%' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text)' }}>Оплата на сайте</h3>
             <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{selected.title}</p>
-            <div
-              style={{
-                background: 'var(--bg-card-hover)',
-                borderRadius: '10px',
-                padding: '1rem',
-                marginBottom: '1.25rem',
-                fontSize: '0.875rem',
-                color: 'var(--text-muted)',
-                lineHeight: 1.5,
-              }}
-            >
+            <div style={{ background: 'var(--bg-card-hover)', borderRadius: '10px', padding: '1rem', marginBottom: '1.25rem', fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <span>Сумма</span>
-                <strong style={{ color: 'var(--text)' }}>
-                  {selected.price.toLocaleString()} {selected.currency || '₽'}
-                </strong>
+                <strong style={{ color: 'var(--text)' }}>{selected.price.toLocaleString()} {selected.currency || '₽'}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <span>Баланс после</span>
@@ -420,46 +364,16 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
                   {(balance - selected.price).toLocaleString()} ₽
                 </strong>
               </div>
-              <div>Выдача через {selected.delivery}. Менеджер: {info?.vendor || 'Arsyukha Podmoskovny'}</div>
+              <div>Товар будет выдан сразу в разделе «Мои заказы»</div>
             </div>
             {balance < selected.price && (
-              <div style={{ color: 'var(--error)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-                Недостаточно средств. Пополните баланс в кошельке.
-              </div>
+              <div style={{ color: 'var(--error)', fontSize: '0.85rem', marginBottom: '1rem' }}>Недостаточно средств. Пополните баланс в кошельке.</div>
             )}
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button
-                type="button"
-                disabled={buying || balance < selected.price}
-                onClick={handleBuy}
-                style={{
-                  flex: 1,
-                  padding: '0.875rem',
-                  background: buying || balance < selected.price ? 'var(--bg-card-hover)' : 'var(--accent)',
-                  color: buying || balance < selected.price ? 'var(--text-muted)' : '#fff',
-                  border: 'none',
-                  borderRadius: '10px',
-                  fontWeight: 600,
-                  cursor: buying || balance < selected.price ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {buying ? 'Оформляем…' : 'Оплатить с баланса'}
+              <button type="button" disabled={buying || balance < selected.price} onClick={handleBuy} style={{ flex: 1, padding: '0.875rem', background: buying || balance < selected.price ? 'var(--bg-card-hover)' : 'var(--accent)', color: buying || balance < selected.price ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '10px', fontWeight: 600, cursor: buying || balance < selected.price ? 'not-allowed' : 'pointer' }}>
+                {buying ? 'Оплата…' : 'Оплатить с баланса'}
               </button>
-              <button
-                type="button"
-                onClick={() => setSelected(null)}
-                disabled={buying}
-                style={{
-                  flex: 1,
-                  padding: '0.875rem',
-                  background: 'transparent',
-                  color: 'var(--text-muted)',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: '10px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
+              <button type="button" onClick={() => setSelected(null)} disabled={buying} style={{ flex: 1, padding: '0.875rem', background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-light)', borderRadius: '10px', fontWeight: 600, cursor: 'pointer' }}>
                 Отмена
               </button>
             </div>
@@ -467,80 +381,15 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
         </div>
       )}
 
-      {/* Успешная покупка */}
       {successOrder && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10001,
-            padding: '1rem',
-            backdropFilter: 'blur(4px)',
-          }}
-          onClick={() => setSuccessOrder(null)}
-        >
-          <div
-            style={{
-              background: 'var(--bg-card)',
-              borderRadius: '16px',
-              border: '1px solid var(--border-light)',
-              padding: '2rem',
-              maxWidth: '440px',
-              width: '100%',
-              textAlign: 'center',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>✓</div>
-            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)' }}>
-              Заказ #{successOrder.id} оформлен
-            </h3>
-            <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.5 }}>
-              {successOrder.deliveryHint}
-            </p>
-            <a
-              href={TG_BOT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.875rem 1.5rem',
-                background: 'var(--accent)',
-                color: '#fff',
-                borderRadius: '10px',
-                textDecoration: 'none',
-                fontWeight: 600,
-                fontSize: '0.95rem',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <TelegramIcon size={22} />
-              Написать в бот
-            </a>
-            <div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSuccessOrder(null);
-                  setTab('orders');
-                }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                }}
-              >
-                Перейти к заказам
-              </button>
-            </div>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001, padding: '1rem', backdropFilter: 'blur(4px)' }} onClick={() => setSuccessOrder(null)}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-light)', padding: '2rem', maxWidth: '480px', width: '100%' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)' }}>Оплата прошла успешно</h3>
+            <p style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Заказ #{successOrder.id} — товар уже доступен ниже</p>
+            <OrderDelivery delivery={successOrder.delivery} />
+            <button type="button" onClick={() => { setSuccessOrder(null); setTab('orders'); }} style={{ width: '100%', marginTop: '1.25rem', padding: '0.875rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 600, cursor: 'pointer' }}>
+              Перейти к заказам
+            </button>
           </div>
         </div>
       )}
