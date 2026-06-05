@@ -314,6 +314,178 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
         </div>
       </Section>
 
+      <Section
+        title="Telegram-бот"
+        description="Привяжите аккаунт @enterpayrisk_bot — push-уведомления и команды /balance, /stats, /payouts."
+      >
+        {!telegram?.configured && (
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              background: 'rgba(245, 158, 11, 0.12)',
+              border: '1px solid rgba(245, 158, 11, 0.45)',
+              borderRadius: '8px',
+              color: 'var(--text)',
+              fontSize: '0.85rem',
+              marginBottom: '1rem',
+            }}
+          >
+            На сервере не задан <code>TELEGRAM_BOT_TOKEN</code> (Netlify → Site settings → Environment variables).
+            Код привязки появится после добавления токена и redeploy.
+          </div>
+        )}
+
+        {telegram?.linked ? (
+          <div>
+            <div
+              style={{
+                padding: '0.75rem 1rem',
+                background: 'var(--positive-soft)',
+                border: '1px solid var(--positive)',
+                borderRadius: '8px',
+                color: 'var(--positive)',
+                fontSize: '0.9rem',
+                marginBottom: '1rem',
+              }}
+            >
+              Привязан
+              {telegram.linkedAt && (
+                <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
+                  с {new Date(telegram.linkedAt).toLocaleString('ru-RU')}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <a
+                href={botUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: '0.65rem 1.25rem',
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                }}
+              >
+                Открыть бота
+              </a>
+              <button
+                type="button"
+                onClick={unlinkTelegram}
+                disabled={linkLoading}
+                style={{
+                  padding: '0.65rem 1.25rem',
+                  background: 'transparent',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: '8px',
+                  color: 'var(--text-muted)',
+                  cursor: linkLoading ? 'not-allowed' : 'pointer',
+                  fontSize: '0.9rem',
+                }}
+              >
+                Отвязать
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+              1. Нажмите «Получить код привязки» → 2. Откройте бота → 3. Отправьте <code>/link КОД</code> или перейдите по ссылке с кодом.
+            </p>
+            {!linkCode ? (
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={generateLinkCode}
+                  disabled={linkLoading || !telegram?.configured}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: linkLoading || !telegram?.configured ? 'var(--bg-card-hover)' : 'var(--accent)',
+                    color: linkLoading || !telegram?.configured ? 'var(--text-muted)' : '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    cursor: linkLoading || !telegram?.configured ? 'not-allowed' : 'pointer',
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  {linkLoading ? 'Генерация...' : 'Получить код привязки'}
+                </button>
+                <a
+                  href={botUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: '0.65rem 1.25rem',
+                    background: 'transparent',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: '8px',
+                    color: 'var(--text)',
+                    textDecoration: 'none',
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  Открыть @enterpayrisk_bot
+                </a>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div>
+                  <label style={labelStyle}>Код (15 мин)</label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input style={{ ...inputStyle, fontFamily: 'monospace', letterSpacing: '0.15em' }} readOnly value={linkCode.code} />
+                    <button
+                      type="button"
+                      onClick={() => copyText(linkCode.code, 'tgcode')}
+                      style={{ padding: '0.75rem 1rem', background: 'var(--bg-card-hover)', border: '1px solid var(--border-light)', borderRadius: '8px', color: 'var(--text)', cursor: 'pointer', fontSize: '0.85rem' }}
+                    >
+                      {copied === 'tgcode' ? 'OK' : 'Копировать'}
+                    </button>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <a
+                    href={linkCode.botUrl || botUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      padding: '0.65rem 1.25rem',
+                      background: 'var(--accent)',
+                      color: '#fff',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Открыть бота с кодом
+                  </a>
+                  <button
+                    type="button"
+                    onClick={generateLinkCode}
+                    disabled={linkLoading}
+                    style={{
+                      padding: '0.65rem 1.25rem',
+                      background: 'transparent',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '8px',
+                      color: 'var(--text)',
+                      cursor: linkLoading ? 'not-allowed' : 'pointer',
+                      fontSize: '0.9rem',
+                    }}
+                  >
+                    Новый код
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Section>
+
       {isShop && (
         <>
           <Section title="Сайт и трафик" description="URL казино и параметры для отслеживания игроков.">
@@ -394,147 +566,6 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
           </Section>
         </>
       )}
-
-      <Section
-        title="Telegram-бот"
-        description="Привяжите аккаунт для push-уведомлений и команд /balance, /stats, /payouts."
-      >
-        {!telegram?.configured ? (
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0 }}>
-            Бот не настроен на сервере (нет TELEGRAM_BOT_TOKEN).
-          </p>
-        ) : telegram.linked ? (
-          <div>
-            <div
-              style={{
-                padding: '0.75rem 1rem',
-                background: 'var(--positive-soft)',
-                border: '1px solid var(--positive)',
-                borderRadius: '8px',
-                color: 'var(--positive)',
-                fontSize: '0.9rem',
-                marginBottom: '1rem',
-              }}
-            >
-              Привязан
-              {telegram.linkedAt && (
-                <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
-                  с {new Date(telegram.linkedAt).toLocaleString('ru-RU')}
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <a
-                href={botUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  padding: '0.65rem 1.25rem',
-                  background: 'var(--accent)',
-                  color: '#fff',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                }}
-              >
-                Открыть бота
-              </a>
-              <button
-                type="button"
-                onClick={unlinkTelegram}
-                disabled={linkLoading}
-                style={{
-                  padding: '0.65rem 1.25rem',
-                  background: 'transparent',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: '8px',
-                  color: 'var(--text-muted)',
-                  cursor: linkLoading ? 'not-allowed' : 'pointer',
-                  fontSize: '0.9rem',
-                }}
-              >
-                Отвязать
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-              1. Получите код → 2. Откройте бота → 3. Отправьте /link КОД или нажмите ссылку с кодом.
-            </p>
-            {!linkCode ? (
-              <button
-                type="button"
-                onClick={generateLinkCode}
-                disabled={linkLoading}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: linkLoading ? 'var(--bg-card-hover)' : 'var(--accent)',
-                  color: linkLoading ? 'var(--text-muted)' : '#fff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: 600,
-                  cursor: linkLoading ? 'not-allowed' : 'pointer',
-                  fontSize: '0.9rem',
-                }}
-              >
-                {linkLoading ? 'Генерация...' : 'Получить код привязки'}
-              </button>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div>
-                  <label style={labelStyle}>Код (15 мин)</label>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <input style={{ ...inputStyle, fontFamily: 'monospace', letterSpacing: '0.15em' }} readOnly value={linkCode.code} />
-                    <button
-                      type="button"
-                      onClick={() => copyText(linkCode.code, 'tgcode')}
-                      style={{ padding: '0.75rem 1rem', background: 'var(--bg-card-hover)', border: '1px solid var(--border-light)', borderRadius: '8px', color: 'var(--text)', cursor: 'pointer', fontSize: '0.85rem' }}
-                    >
-                      {copied === 'tgcode' ? 'OK' : 'Копировать'}
-                    </button>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <a
-                    href={linkCode.botUrl || botUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      padding: '0.65rem 1.25rem',
-                      background: 'var(--accent)',
-                      color: '#fff',
-                      borderRadius: '8px',
-                      textDecoration: 'none',
-                      fontSize: '0.9rem',
-                      fontWeight: 600,
-                    }}
-                  >
-                    Открыть бота с кодом
-                  </a>
-                  <button
-                    type="button"
-                    onClick={generateLinkCode}
-                    disabled={linkLoading}
-                    style={{
-                      padding: '0.65rem 1.25rem',
-                      background: 'transparent',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: '8px',
-                      color: 'var(--text)',
-                      cursor: linkLoading ? 'not-allowed' : 'pointer',
-                      fontSize: '0.9rem',
-                    }}
-                  >
-                    Новый код
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Section>
 
       <Section
         title="Уведомления в Telegram"
