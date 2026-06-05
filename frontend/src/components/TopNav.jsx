@@ -34,7 +34,6 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
   return (
     <header className="ep-topnav">
       <div className="ep-topnav__left">
-        <div className="ep-topnav__brand-row">
         <div className="ep-topnav__brand">
           <button
             type="button"
@@ -42,7 +41,7 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
             onClick={() => onTabChange('dashboard')}
             aria-label="На главную"
           >
-            <EnterPayLogo size="sm" className="ep-topnav__brand-text" />
+            <EnterPayLogo size="xs" className="ep-topnav__brand-text" />
           </button>
           <span
             className="ep-topnav__badge ep-no-copy"
@@ -52,7 +51,6 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
           >
             High-risk
           </span>
-        </div>
         </div>
 
         <nav className="ep-topnav__menu">
