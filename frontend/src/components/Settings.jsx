@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API } from '../api';
-import { TG_BOT_URL } from '../config';
 
 const DEFAULT_SETTINGS = {
   casinoSiteUrl: '',
@@ -123,9 +122,6 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
   const [profile, setProfile] = useState({ name: '', email: '', telegram: '', role: '' });
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [integration, setIntegration] = useState(null);
-  const [telegram, setTelegram] = useState(null);
-  const [linkCode, setLinkCode] = useState(null);
-  const [linkLoading, setLinkLoading] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [copied, setCopied] = useState('');
   const [loadFailed, setLoadFailed] = useState(false);
@@ -148,7 +144,6 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
       setProfile(data.profile || {});
       setSettings({ ...DEFAULT_SETTINGS, ...(data.settings || {}) });
       setIntegration(data.integration || null);
-      setTelegram(data.telegram || null);
     } catch (e) {
       console.error(e);
       setLoadFailed(true);
@@ -196,47 +191,6 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
     setCopied(key);
     setTimeout(() => setCopied(''), 2000);
   };
-
-  const generateLinkCode = async () => {
-    setLinkLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`${API}/api/telegram/link-code`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Не удалось получить код');
-      setLinkCode(data);
-    } catch (e) {
-      setError(e.message || 'Ошибка');
-    } finally {
-      setLinkLoading(false);
-    }
-  };
-
-  const unlinkTelegram = async () => {
-    setLinkLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`${API}/api/telegram/unlink`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ошибка отвязки');
-      setTelegram((t) => ({ ...t, linked: false, linkedAt: null }));
-      setLinkCode(null);
-      setMessage('Telegram отвязан');
-      setTimeout(() => setMessage(''), 3000);
-    } catch (e) {
-      setError(e.message || 'Ошибка отвязки');
-    } finally {
-      setLinkLoading(false);
-    }
-  };
-
-  const botUrl = telegram?.botUrl || linkCode?.botUrl || TG_BOT_URL;
 
   if (loading) {
     return (
@@ -294,7 +248,7 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
         </div>
       )}
 
-      <Section title="Профиль" description="Контакты для связи и уведомлений в Telegram.">
+      <Section title="Профиль" description="Контакты для связи с поддержкой.">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
             <label style={labelStyle}>Имя / ник</label>
@@ -312,178 +266,6 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
             Роль: <strong style={{ color: 'var(--text)' }}>{roleLabel}</strong>
           </div>
         </div>
-      </Section>
-
-      <Section
-        title="Telegram-бот"
-        description="Привяжите аккаунт @enterpayrisk_bot — push-уведомления и команды /balance, /stats, /payouts."
-      >
-        {!telegram?.configured && (
-          <div
-            style={{
-              padding: '0.75rem 1rem',
-              background: 'rgba(245, 158, 11, 0.12)',
-              border: '1px solid rgba(245, 158, 11, 0.45)',
-              borderRadius: '8px',
-              color: 'var(--text)',
-              fontSize: '0.85rem',
-              marginBottom: '1rem',
-            }}
-          >
-            На сервере не задан <code>TELEGRAM_BOT_TOKEN</code> (Netlify → Site settings → Environment variables).
-            Код привязки появится после добавления токена и redeploy.
-          </div>
-        )}
-
-        {telegram?.linked ? (
-          <div>
-            <div
-              style={{
-                padding: '0.75rem 1rem',
-                background: 'var(--positive-soft)',
-                border: '1px solid var(--positive)',
-                borderRadius: '8px',
-                color: 'var(--positive)',
-                fontSize: '0.9rem',
-                marginBottom: '1rem',
-              }}
-            >
-              Привязан
-              {telegram.linkedAt && (
-                <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
-                  с {new Date(telegram.linkedAt).toLocaleString('ru-RU')}
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <a
-                href={botUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  padding: '0.65rem 1.25rem',
-                  background: 'var(--accent)',
-                  color: '#fff',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                }}
-              >
-                Открыть бота
-              </a>
-              <button
-                type="button"
-                onClick={unlinkTelegram}
-                disabled={linkLoading}
-                style={{
-                  padding: '0.65rem 1.25rem',
-                  background: 'transparent',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: '8px',
-                  color: 'var(--text-muted)',
-                  cursor: linkLoading ? 'not-allowed' : 'pointer',
-                  fontSize: '0.9rem',
-                }}
-              >
-                Отвязать
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-              1. Нажмите «Получить код привязки» → 2. Откройте бота → 3. Отправьте <code>/link КОД</code> или перейдите по ссылке с кодом.
-            </p>
-            {!linkCode ? (
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={generateLinkCode}
-                  disabled={linkLoading || !telegram?.configured}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    background: linkLoading || !telegram?.configured ? 'var(--bg-card-hover)' : 'var(--accent)',
-                    color: linkLoading || !telegram?.configured ? 'var(--text-muted)' : '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    cursor: linkLoading || !telegram?.configured ? 'not-allowed' : 'pointer',
-                    fontSize: '0.9rem',
-                  }}
-                >
-                  {linkLoading ? 'Генерация...' : 'Получить код привязки'}
-                </button>
-                <a
-                  href={botUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    padding: '0.65rem 1.25rem',
-                    background: 'transparent',
-                    border: '1px solid var(--border-light)',
-                    borderRadius: '8px',
-                    color: 'var(--text)',
-                    textDecoration: 'none',
-                    fontSize: '0.9rem',
-                  }}
-                >
-                  Открыть @enterpayrisk_bot
-                </a>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div>
-                  <label style={labelStyle}>Код (15 мин)</label>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <input style={{ ...inputStyle, fontFamily: 'monospace', letterSpacing: '0.15em' }} readOnly value={linkCode.code} />
-                    <button
-                      type="button"
-                      onClick={() => copyText(linkCode.code, 'tgcode')}
-                      style={{ padding: '0.75rem 1rem', background: 'var(--bg-card-hover)', border: '1px solid var(--border-light)', borderRadius: '8px', color: 'var(--text)', cursor: 'pointer', fontSize: '0.85rem' }}
-                    >
-                      {copied === 'tgcode' ? 'OK' : 'Копировать'}
-                    </button>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <a
-                    href={linkCode.botUrl || botUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      padding: '0.65rem 1.25rem',
-                      background: 'var(--accent)',
-                      color: '#fff',
-                      borderRadius: '8px',
-                      textDecoration: 'none',
-                      fontSize: '0.9rem',
-                      fontWeight: 600,
-                    }}
-                  >
-                    Открыть бота с кодом
-                  </a>
-                  <button
-                    type="button"
-                    onClick={generateLinkCode}
-                    disabled={linkLoading}
-                    style={{
-                      padding: '0.65rem 1.25rem',
-                      background: 'transparent',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: '8px',
-                      color: 'var(--text)',
-                      cursor: linkLoading ? 'not-allowed' : 'pointer',
-                      fontSize: '0.9rem',
-                    }}
-                  >
-                    Новый код
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </Section>
 
       {isShop && (
@@ -566,27 +348,6 @@ export default function Settings({ getAuthHeaders, user, token, onUserUpdate }) 
           </Section>
         </>
       )}
-
-      <Section
-        title="Уведомления в Telegram"
-        description={isMerchant ? 'Оповещения о заявках на выплату и апелляциях.' : 'Какие события дублировать в Telegram.'}
-      >
-        {isShop && (
-          <Toggle checked={settings.notifyTelegramDeposits} onChange={(v) => updateSetting('notifyTelegramDeposits', v)} label="Депозиты и пополнения" />
-        )}
-        <Toggle checked={settings.notifyTelegramPayouts} onChange={(v) => updateSetting('notifyTelegramPayouts', v)} label="Выплаты и заявки" />
-        <Toggle checked={settings.notifyTelegramAppeals} onChange={(v) => updateSetting('notifyTelegramAppeals', v)} label="Апелляции и споры" />
-        <div style={{ marginTop: '0.75rem' }}>
-          <label style={labelStyle}>Мин. сумма для уведомления (₽)</label>
-          <input
-            type="number"
-            style={inputStyle}
-            value={settings.notifyMinAmount}
-            onChange={(e) => updateSetting('notifyMinAmount', e.target.value)}
-            min={0}
-          />
-        </div>
-      </Section>
 
       {isMerchant && (
         <Section title="Выплаты" description="Поведение при приёме заявок на вывод с казино.">

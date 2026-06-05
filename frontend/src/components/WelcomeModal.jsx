@@ -1,6 +1,6 @@
 import TelegramIcon from './TelegramIcon';
 import EnterPayLogo from './EnterPayLogo';
-import { TG_BOT_URL, TG_CHANNEL_URL } from '../config';
+import { TG_CHANNEL_URL } from '../config';
 
 export default function WelcomeModal({ userName, onClose }) {
   const nick = (userName || '').trim();
@@ -48,7 +48,7 @@ export default function WelcomeModal({ userName, onClose }) {
             {nick ? `${nick}, добро пожаловать!` : 'Добро пожаловать!'}
           </h2>
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.5 }}>
-            Вы успешно зарегистрировались на Enter Pay. Подпишитесь на канал и бота, чтобы не пропустить важные уведомления.
+            Вы успешно зарегистрировались на Enter Pay. Подпишитесь на канал, чтобы следить за новостями платформы.
           </p>
         </div>
 
@@ -74,28 +74,6 @@ export default function WelcomeModal({ userName, onClose }) {
           >
             <TelegramIcon size={28} />
             <span>Telegram-канал</span>
-          </a>
-          <a
-            href={TG_BOT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '1rem 1.1rem',
-              background: 'var(--bg-card-hover)',
-              border: '1px solid var(--border-light)',
-              borderRadius: '12px',
-              color: 'var(--text)',
-              textDecoration: 'none',
-              fontWeight: 600,
-              fontSize: '0.95rem',
-              transition: 'border-color 0.15s, background 0.15s',
-            }}
-          >
-            <TelegramIcon size={28} />
-            <span>Telegram-бот</span>
           </a>
         </div>
 
