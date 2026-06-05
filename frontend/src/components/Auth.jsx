@@ -4,7 +4,7 @@ import TelegramIcon from './TelegramIcon';
 import EnterPayLogo from './EnterPayLogo';
 
 
-export default function Auth({ onLogin, referralCode: initialReferralCode }) {
+function Auth({ onLogin, referralCode: initialReferralCode }) {
   const [isLogin, setIsLogin] = useState(true);
   const [referralCode] = useState(() => initialReferralCode || '');
   const [formData, setFormData] = useState({
@@ -116,15 +116,17 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
           >
             {isLogin ? 'С возвращением' : 'Создание аккаунта'}
           </h1>
-          <p
-            style={{
-              color: 'var(--text-muted)',
-              fontSize: '0.9rem',
-              margin: 0,
-            }}
-          >
-            {isLogin ? 'Войдите, чтобы продолжить работу' : 'Заполните данные, чтобы начать'}
-          </p>
+          {!isLogin && (
+            <p
+              style={{
+                color: 'var(--text-muted)',
+                fontSize: '0.9rem',
+                margin: 0,
+              }}
+            >
+              Заполните данные, чтобы начать
+            </p>
+          )}
         </div>
 
         <div
@@ -332,7 +334,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
                 >
                   {[
                     { value: 'merchant', label: 'Трейдер' },
-                    { value: 'shop', label: 'Казино' },
+                    { value: 'shop', label: 'Магазин' },
                   ].map((option) => (
                     <button
                       key={option.value}
@@ -491,3 +493,5 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
     </div>
   );
 }
+
+export default Auth;

@@ -30,21 +30,26 @@ export default function Loader({ user, subtitle }) {
           fontSize: '2.25rem',
           fontWeight: 700,
           letterSpacing: '-0.02em',
+          lineHeight: 1.1,
         }}
       >
-        <span style={{ color: 'var(--text-light)' }}>Enter Pay</span>
+        <span style={{ color: 'var(--text-light)' }}>
+          Enter{' '}
+          <span style={{ color: 'var(--accent)' }}>Pay</span>
+        </span>
         <span
+          aria-hidden="true"
           style={{
             position: 'absolute',
             left: 0,
             top: 0,
-            color: 'var(--accent)',
+            color: 'var(--text)',
             clipPath: 'inset(0 100% 0 0)',
-            animation: 'loaderTextFill 1.2s ease-out forwards',
+            animation: 'loaderEnterFill 1.2s ease-out forwards',
             whiteSpace: 'nowrap',
           }}
         >
-          Enter Pay
+          Enter
         </span>
       </div>
       <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', position: 'relative', zIndex: 1 }}>

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { API } from '../api';
-import { PayoutsIcon } from './Icons';
 
 const PAYMENT_LABELS = { card_ru: 'Банковская карта РФ', sbp: 'СБП' };
 
@@ -48,14 +47,11 @@ export default function Payouts({
   };
 
   const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [acceptedRequest, setAcceptedRequest] = useState(null);
 
   useEffect(() => {
-    setLoading(true);
     fetchFiltered().then((data) => {
       setRequests(data);
-      setLoading(false);
     });
   }, [amountFrom, amountTo, paymentFilter, payoutRequests]);
 
@@ -231,7 +227,7 @@ export default function Payouts({
 
             <div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Банк</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text)' }}>{req.bank || '—'}</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text)' }}>{req.bank || 'нет'}</div>
             </div>
 
             <div>
@@ -420,12 +416,9 @@ export default function Payouts({
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text)', marginBottom: '0.25rem' }}>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
           Выплаты
         </h1>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-          Заявки на вывод от сторонних пользователей. Примите заявку, переведите деньги и загрузите чек — получите +1% к балансу
-        </p>
       </div>
 
       {/* Поиск по сумме */}
@@ -501,22 +494,18 @@ export default function Payouts({
         border: '1px solid var(--border-light)',
         boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
       }}>
-        {loading ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Загрузка...</div>
-        ) : requests.length === 0 ? (
+        {requests.length === 0 ? (
           <div style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            padding: '4rem 2rem',
+            justifyContent: 'center',
+            minHeight: '16rem',
+            padding: '8rem 2rem',
             color: 'var(--text-muted)',
             textAlign: 'center',
           }}>
-            <div style={{ marginBottom: '1rem', opacity: 0.5 }}>
-              <PayoutsIcon size={48} color="var(--text-muted)" />
-            </div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 500, marginBottom: '0.5rem' }}>Нет доступных заявок</div>
-            <div style={{ fontSize: '0.9rem' }}>Попробуйте изменить фильтры по сумме</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 500 }}>Нет доступных заявок</div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

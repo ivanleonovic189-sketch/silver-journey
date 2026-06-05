@@ -145,6 +145,10 @@ body.ep-has-waves #root {
   background: transparent;
 }
 
+.ep-loader {
+  background: transparent;
+}
+
 .ep-app-root {
   position: relative;
   flex: 1;
@@ -414,7 +418,16 @@ body.ep-has-waves #root {
   }
 }
 
-/* Прелоадер: заполнение текста */
+/* Прелоадер: заполнение Enter */
+@keyframes loaderEnterFill {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
 @keyframes loaderTextFill {
   from {
     clip-path: inset(0 100% 0 0);
@@ -666,6 +679,31 @@ body.ep-has-waves #root {
   }
 }
 
+.ep-shop-dash-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.ep-shop-dash-panels {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  .ep-shop-dash-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .ep-shop-dash-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .ep-waves__layer {
     min-height: 90px;
@@ -683,4 +721,98 @@ body.ep-has-waves #root {
   .ep-waves__blob {
     animation: none !important;
   }
+}
+
+/* ── API docs: подсветка кода (VS Code Dark+) ── */
+.ep-code-block {
+  margin: 0.75rem 0 0;
+  padding: 1rem 1.15rem;
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: auto;
+  font-size: 0.78rem;
+  line-height: 1.65;
+}
+
+.ep-code-block code {
+  display: block;
+  font-family: 'Cascadia Code', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  tab-size: 2;
+}
+
+.ep-code-block .hljs-comment,
+.ep-code-block .hljs-quote {
+  color: #6a9955;
+  font-style: italic;
+}
+
+.ep-code-block .hljs-keyword,
+.ep-code-block .hljs-selector-tag,
+.ep-code-block .hljs-built_in,
+.ep-code-block .hljs-name {
+  color: #569cd6;
+}
+
+.ep-code-block .hljs-string,
+.ep-code-block .hljs-regexp,
+.ep-code-block .hljs-symbol,
+.ep-code-block .hljs-bullet {
+  color: #ce9178;
+}
+
+.ep-code-block .hljs-number,
+.ep-code-block .hljs-literal {
+  color: #b5cea8;
+}
+
+.ep-code-block .hljs-title,
+.ep-code-block .hljs-title.function_,
+.ep-code-block .hljs-section {
+  color: #dcdcaa;
+}
+
+.ep-code-block .hljs-attr,
+.ep-code-block .hljs-attribute,
+.ep-code-block .hljs-variable,
+.ep-code-block .hljs-template-variable,
+.ep-code-block .hljs-type {
+  color: #9cdcfe;
+}
+
+.ep-code-block .hljs-meta,
+.ep-code-block .hljs-meta .hljs-keyword {
+  color: #d7ba7d;
+}
+
+.ep-code-block .hljs-params {
+  color: #d4d4d4;
+}
+
+.ep-code-block .hljs-punctuation {
+  color: #808080;
+}
+
+.ep-input-no-spin::-webkit-outer-spin-button,
+.ep-input-no-spin::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.ep-input-no-spin {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.ep-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239a9ea8' d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 12px 12px;
 }

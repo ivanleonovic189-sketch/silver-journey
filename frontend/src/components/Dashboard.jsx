@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import TelegramIcon from './TelegramIcon';
-import { WalletIcon, DealsIcon, AppealsIcon, LockIcon, PlusIcon, InfoIcon } from './Icons';
+import { LockIcon, PlusIcon } from './Icons';
 
 const TYPE_LABELS = { card_ru: 'Банковская карта', sbp: 'СБП' };
 
@@ -19,28 +19,12 @@ export default function Dashboard({
   onDeviceToggleOnline,
 }) {
   const chartPeriod = 'day';
-  const [dealsPeriod, setDealsPeriod] = useState('all');
-  const [payoutsPeriod, setPayoutsPeriod] = useState('all');
-  const [appealsPeriod, setAppealsPeriod] = useState('all');
-  const [showDealsSelect, setShowDealsSelect] = useState(false);
-  const [showPayoutsSelect, setShowPayoutsSelect] = useState(false);
-  const [showAppealsSelect, setShowAppealsSelect] = useState(false);
   const [totalIncome, setTotalIncome] = useState(0);
   const [chartData, setChartData] = useState([]);
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [lockTooltip, setLockTooltip] = useState(null); // { text, x, y }
-  const [infoModal, setInfoModal] = useState(null); // { title, text }
   
-  const INFO_DEFINITIONS = {
-    deals: { title: 'Сделки', text: 'Количество успешно завершенных P2P-транзакций. Показывает общее число оплаченных ордеров.' },
-    appeals: { title: 'Апелляции', text: 'Количество оспоренных или неуспешных транзакций, требующих проверки. Включает отмененные сделки и случаи, когда покупатель инициировал спор.' },
-    payouts: { title: 'Выплаты', text: 'Общая сумма выведенных средств с баланса. Отображает все успешно обработанные выводы за весь период.' },
-    conversion: { title: 'Конверсия по устройствам', text: 'Процент успешно оплаченных сделок по каждому способу приема. Показывает эффективность работы платежных методов в P2P.' },
-    chat: { title: 'Рабочий чат', text: 'Telegram-чат для связи с операторами. Здесь можно задать вопросы, получить поддержку по сделкам. Операторы будут пинговать вас по апелляциям.' },
-    curator: { title: 'Ваш куратор', text: 'Назначенный куратор предоставляет реферальную ссылку, мануалы по работе с системой и персональную поддержку. Куратор помогает новым мерчантам разобраться в P2P-операциях.' },
-  };
-
   useEffect(() => {
     if (transactions && stats) {
       // Общий доход за всё время (для начального отображения)
@@ -107,16 +91,10 @@ export default function Dashboard({
     }
   }, [transactions, stats, user]);
 
-  // Закрываем dropdown при клике вне его
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showDealsSelect && !event.target.closest('[data-period-select="deals"]')) setShowDealsSelect(false);
-      if (showPayoutsSelect && !event.target.closest('[data-period-select="payouts"]')) setShowPayoutsSelect(false);
-      if (showAppealsSelect && !event.target.closest('[data-period-select="appeals"]')) setShowAppealsSelect(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showDealsSelect, showPayoutsSelect, showAppealsSelect]);
+  const openDevicesAdd = () => {
+    sessionStorage.setItem('openDevicesAddModal', '1');
+    onTabChange?.('devices');
+  };
 
   const maxAmount = Math.max(...chartData.map((d) => d.amount), 1);
   const maxEarned = Math.max(...chartData.map((d) => d.earned || 0), 1);
@@ -175,11 +153,11 @@ export default function Dashboard({
 
   // Процентные ставки
   const interestRates = [
-    { percent: 16,   range: 'Моб. коммерция · до 999 ₽',       minDeposit: 2000 },
-    { percent: 14,   range: 'СБП / С2С · 100 – 999 ₽',          minDeposit: 2000 },
-    { percent: 12,   range: 'СБП / С2С · 1 000 – 4 999 ₽',      minDeposit: 7000 },
-    { percent: 10.5, range: 'СБП / С2С · 5 000 – 19 999 ₽',     minDeposit: 15000 },
-    { percent: 9,    range: 'СБП / С2С · 20 000 – 300 000 ₽',   minDeposit: 30000 },
+    { percent: 16,   range: 'Моб. коммерция до 999 ₽',       minDeposit: 2000 },
+    { percent: 14,   range: 'СБП / С2С 100 - 999 ₽',          minDeposit: 2000 },
+    { percent: 12,   range: 'СБП / С2С 1 000 - 4 999 ₽',      minDeposit: 7000 },
+    { percent: 10.5, range: 'СБП / С2С 5 000 - 19 999 ₽',     minDeposit: 15000 },
+    { percent: 9,    range: 'СБП / С2С 20 000 - 300 000 ₽',   minDeposit: 30000 },
   ];
 
   // Определяем доступную ставку на основе страхового депозита
@@ -226,47 +204,11 @@ export default function Dashboard({
     return received - paid + payoutRewards;
   })();
 
-  const totalDeals = transactions.filter((t) => t.status === 'completed' && filterByPeriod(t.createdAt, dealsPeriod)).length;
-  const totalAppeals = transactions.filter((t) => t.status === 'failed' && filterByPeriod(t.createdAt, appealsPeriod)).length;
-  // Выплаты = сумма завершённых заявок на выплату (P2P), отфильтрованных по периоду
+  const totalDeals = transactions.filter((t) => t.status === 'completed').length;
+  const totalAppeals = transactions.filter((t) => t.status === 'failed').length;
   const totalPayouts = payoutRequests
-    .filter((r) => r.status === 'completed' && String(r.traderId) === String(user?.id) && filterByPeriod(r.completedAt || r.createdAt, payoutsPeriod))
+    .filter((r) => r.status === 'completed' && String(r.traderId) === String(user?.id))
     .reduce((sum, r) => sum + (r.amount || 0), 0);
-
-  const PeriodSelect = ({ period, setPeriod, show, setShow, dataAttr }) => (
-    <div style={{ position: 'relative' }} data-period-select={dataAttr}>
-      <button
-        onClick={() => setShow(!show)}
-        style={{
-          padding: '0.4rem 0.75rem',
-          background: 'var(--bg-card-hover)',
-          border: '1px solid var(--border-light)',
-          borderRadius: '8px',
-          color: 'var(--text)',
-          fontSize: '0.8rem',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.35rem',
-          fontWeight: 500,
-        }}
-      >
-        {period === 'day' ? 'День' : period === 'week' ? 'Неделя' : period === 'month' ? 'Месяц' : 'Все время'}
-        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ transform: show ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-          <path d="M6 9L1 4H11L6 9Z" fill="currentColor" />
-        </svg>
-      </button>
-      {show && (
-        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.35rem', background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: '8px', minWidth: '130px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' }}>
-          {['day', 'week', 'month', 'all'].map((p) => (
-            <button key={p} onClick={() => { setPeriod(p); setShow(false); }} style={{ width: '100%', padding: '0.5rem 0.75rem', background: period === p ? 'var(--bg-card-hover)' : 'transparent', border: 'none', color: period === p ? 'var(--text)' : 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer', textAlign: 'left', fontWeight: period === p ? 600 : 400 }} onMouseEnter={(e) => { if (period !== p) e.currentTarget.style.background = 'var(--bg-card-hover)'; }} onMouseLeave={(e) => { if (period !== p) e.currentTarget.style.background = 'transparent'; }}>
-              {p === 'day' ? 'День' : p === 'week' ? 'Неделя' : p === 'month' ? 'Месяц' : 'Все время'}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 
   const greetingHour = new Date().getHours();
   const greeting = greetingHour < 5 ? 'Доброй ночи' : greetingHour < 12 ? 'Доброе утро' : greetingHour < 18 ? 'Добрый день' : 'Добрый вечер';
@@ -292,6 +234,7 @@ export default function Dashboard({
   };
   const onCardEnter = (e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-card-hover)'; };
   const onCardLeave = (e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.background = 'var(--bg-card)'; };
+  const clickableCardStyle = { cursor: 'pointer' };
 
   return (
     <div className="ep-page">
@@ -308,42 +251,48 @@ export default function Dashboard({
       {/* Верхняя статистика - карточки в ряд */}
       <div className="ep-dash-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
         {/* Сделки */}
-        <div style={statCardStyle} onMouseEnter={onCardEnter} onMouseLeave={onCardLeave}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={eyebrowStyle}>
-              Сделки
-              <button onClick={() => setInfoModal(INFO_DEFINITIONS.deals)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}><InfoIcon size={14} /></button>
-            </div>
-            <PeriodSelect period={dealsPeriod} setPeriod={setDealsPeriod} show={showDealsSelect} setShow={setShowDealsSelect} dataAttr="deals" />
-          </div>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => onTabChange?.('deals')}
+          onKeyDown={(e) => e.key === 'Enter' && onTabChange?.('deals')}
+          style={{ ...statCardStyle, ...clickableCardStyle }}
+          onMouseEnter={onCardEnter}
+          onMouseLeave={onCardLeave}
+        >
+          <div style={eyebrowStyle}>Сделки</div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text)' }}>
             {totalDeals}
           </div>
         </div>
 
         {/* Выплаты */}
-        <div style={statCardStyle} onMouseEnter={onCardEnter} onMouseLeave={onCardLeave}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={eyebrowStyle}>
-              Выплаты
-              <button onClick={() => setInfoModal(INFO_DEFINITIONS.payouts)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}><InfoIcon size={14} /></button>
-            </div>
-            <PeriodSelect period={payoutsPeriod} setPeriod={setPayoutsPeriod} show={showPayoutsSelect} setShow={setShowPayoutsSelect} dataAttr="payouts" />
-          </div>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => onTabChange?.('payouts')}
+          onKeyDown={(e) => e.key === 'Enter' && onTabChange?.('payouts')}
+          style={{ ...statCardStyle, ...clickableCardStyle }}
+          onMouseEnter={onCardEnter}
+          onMouseLeave={onCardLeave}
+        >
+          <div style={eyebrowStyle}>Выплаты</div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text)' }}>
             {totalPayouts.toLocaleString()} ₽
           </div>
         </div>
 
         {/* Апелляции */}
-        <div style={statCardStyle} onMouseEnter={onCardEnter} onMouseLeave={onCardLeave}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={eyebrowStyle}>
-              Апелляции
-              <button onClick={() => setInfoModal(INFO_DEFINITIONS.appeals)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}><InfoIcon size={14} /></button>
-            </div>
-            <PeriodSelect period={appealsPeriod} setPeriod={setAppealsPeriod} show={showAppealsSelect} setShow={setShowAppealsSelect} dataAttr="appeals" />
-          </div>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => onTabChange?.('appeals')}
+          onKeyDown={(e) => e.key === 'Enter' && onTabChange?.('appeals')}
+          style={{ ...statCardStyle, ...clickableCardStyle }}
+          onMouseEnter={onCardEnter}
+          onMouseLeave={onCardLeave}
+        >
+          <div style={eyebrowStyle}>Апелляции</div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text)' }}>
             {totalAppeals}
           </div>
@@ -484,7 +433,7 @@ export default function Dashboard({
                       objectFit: 'contain',
                     }}
                   />
-                  <span>{usdtRate ? `${usdtRate.toFixed(2)}₽` : '—'}</span>
+                  <span>{usdtRate ? `${usdtRate.toFixed(2)}₽` : 'нет'}</span>
                 </span>
               </div>
             </div>
@@ -662,13 +611,9 @@ export default function Dashboard({
                 fontWeight: 600,
                 fontSize: '0.9rem',
                 color: 'var(--text)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
               }}
             >
               Конверсия по устройствам
-              <button onClick={() => setInfoModal(INFO_DEFINITIONS.conversion)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}><InfoIcon size={14} /></button>
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {conversionData.length > 0 ? (
@@ -743,9 +688,10 @@ export default function Dashboard({
                     </div>
                     </div>
                   );})}
-                  {merchantDevices.length > 0 && hasInsuranceDeposit && (
+                  {merchantDevices.length > 0 && (
                     <button
-                      onClick={() => { sessionStorage.setItem('openDevicesAddModal', '1'); onTabChange('devices'); }}
+                      type="button"
+                      onClick={openDevicesAdd}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -763,37 +709,14 @@ export default function Dashboard({
                       }}
                     >
                       <PlusIcon size={14} color="var(--text-muted)" />
-                      Добавить устройство
+                      Добавить
                     </button>
                   )}
                 </>
               ) : (
-                <div style={{ position: 'relative', width: '100%' }}>
-                  {!hasInsuranceDeposit && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        borderRadius: '10px',
-                        zIndex: 5,
-                        pointerEvents: 'auto',
-                        cursor: 'default',
-                      }}
-                      onMouseEnter={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setLockTooltip({ text: 'Чтобы добавить устройство, у вас должен быть страховой депозит от 20 000 ₽', x: rect.left + rect.width / 2, y: rect.top });
-                      }}
-                      onMouseMove={(e) => {
-                        if (lockTooltip) {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setLockTooltip(prev => prev ? { ...prev, x: rect.left + rect.width / 2, y: rect.top } : null);
-                        }
-                      }}
-                      onMouseLeave={() => setLockTooltip(null)}
-                    />
-                  )}
                 <button
-                  onClick={() => { if (hasInsuranceDeposit) { sessionStorage.setItem('openDevicesAddModal', '1'); onTabChange('devices'); } }}
+                  type="button"
+                  onClick={openDevicesAdd}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -804,41 +727,18 @@ export default function Dashboard({
                     background: 'var(--bg-card-hover)',
                     border: '1px solid var(--border-light)',
                     borderRadius: '10px',
-                    color: hasInsuranceDeposit ? 'var(--text)' : 'var(--text-muted)',
+                    color: 'var(--text)',
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    cursor: hasInsuranceDeposit ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     transition: 'all 0.2s',
-                    opacity: hasInsuranceDeposit ? 1 : 0.5,
-                    pointerEvents: hasInsuranceDeposit ? 'auto' : 'none',
                   }}
-                  disabled={!hasInsuranceDeposit}
-                  onMouseEnter={(e) => {
-                    if (hasInsuranceDeposit) {
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                    } else {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setLockTooltip({ text: 'Чтобы добавить устройство, у вас должен быть страховой депозит от 20 000 ₽', x: rect.left + rect.width / 2, y: rect.top });
-                    }
-                  }}
-                  onMouseMove={(e) => {
-                    if (!hasInsuranceDeposit && lockTooltip) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setLockTooltip(prev => prev ? { ...prev, x: rect.left + rect.width / 2, y: rect.top } : null);
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (hasInsuranceDeposit) {
-                      e.currentTarget.style.borderColor = 'var(--border-light)';
-                    }
-                    setLockTooltip(null);
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; }}
                 >
-                  {!hasInsuranceDeposit && <LockIcon size={18} color="var(--text-muted)" />}
-                  <PlusIcon size={18} color={hasInsuranceDeposit ? 'var(--accent)' : 'var(--text-muted)'} />
+                  <PlusIcon size={18} color="var(--accent)" />
                   <span>Добавить</span>
                 </button>
-                </div>
               )}
             </div>
           </div>
@@ -866,7 +766,6 @@ export default function Dashboard({
             >
               Рабочий чат
               <TelegramIcon size={24} />
-              <button onClick={() => setInfoModal(INFO_DEFINITIONS.chat)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)', marginLeft: '0.2rem' }}><InfoIcon size={14} /></button>
             </h3>
             <div
               style={{
@@ -923,13 +822,9 @@ export default function Dashboard({
                 fontWeight: 600,
                 fontSize: '0.9rem',
                 color: 'var(--text)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
               }}
             >
               Ваш куратор
-              <button onClick={() => setInfoModal(INFO_DEFINITIONS.curator)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-muted)' }}><InfoIcon size={14} /></button>
             </h3>
             
             {/* Реферальная ссылка */}
@@ -1040,58 +935,6 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* Модалка с определением */}
-      {infoModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10001,
-            backdropFilter: 'blur(4px)',
-          }}
-          onClick={() => setInfoModal(null)}
-        >
-          <div
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-light)',
-              borderRadius: '16px',
-              padding: '1.5rem 2rem',
-              maxWidth: '420px',
-              width: '90%',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)', marginBottom: '1rem' }}>
-              {infoModal.title}
-            </div>
-            <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              {infoModal.text}
-            </div>
-            <button
-              onClick={() => setInfoModal(null)}
-              style={{
-                marginTop: '1.25rem',
-                padding: '0.6rem 1.25rem',
-                background: 'var(--bg-card-hover)',
-                border: '1px solid var(--border-light)',
-                borderRadius: '10px',
-                color: 'var(--text)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Понятно
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

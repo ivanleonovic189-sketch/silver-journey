@@ -44,7 +44,9 @@ export default function App() {
   const [stats, setStats] = useState(null);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [merchantDevices, setMerchantDevices] = useState([]);
-  const [loading, setLoading] = useState(storedSession.hasSession);
+  const [loading, setLoading] = useState(
+    () => storedSession.hasSession && storedSession.user?.role !== 'shop'
+  );
   const validTabs = ['dashboard', 'deals', 'appeals', 'payouts', 'history', 'devices', 'shop', 'ref', 'settings', 'merchants', 'transactions', 'stats'];
   const [activeTab, setActiveTabState] = useState(() => {
     const hash = window.location.hash.slice(1) || 'dashboard';
@@ -275,12 +277,12 @@ export default function App() {
         localStorage.removeItem('enterPayUser');
         setToken(null);
         setUser(null);
+        setLoading(false);
       }
     } catch (err) {
-      console.warn('Не удалось проверить сессию, используем сохранённые данные:', err);
+      console.warn('Не удалось проверить сессию, используем сохраненные данные:', err);
     } finally {
       clearTimeout(timeout);
-      setLoading(false);
     }
   };
 
@@ -629,8 +631,8 @@ export default function App() {
     }
   };
 
-  const refMatch = (window.location.hash || window.location.search).match(/ref=([A-Za-z0-9]+)/);
-  const referralCode = refMatch ? refMatch[1] : null;
+  const refMatch = (window.location.hash || window.location.search).match(/ref=([^&]+)/);
+  const referralCode = refMatch ? decodeURIComponent(refMatch[1]) : null;
   const isAuthed = Boolean(user && token);
 
   if (loading && isAuthed) {
@@ -686,7 +688,7 @@ export default function App() {
       {/* Основной контент */}
       <div className="ep-app-main" style={{ flex: 1, minHeight: 'calc(100vh - 72px)' }}>
         {/* Контент */}
-        {activeTab === 'dashboard' && (
+        <div style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}>
           <Dashboard
             user={user}
             stats={stats}
@@ -701,80 +703,77 @@ export default function App() {
             usdtRate={usdtRate}
             onDeviceToggleOnline={handleDeviceToggleOnline}
           />
-        )}
+        </div>
 
-        {activeTab !== 'dashboard' && (
-          <div className="ep-page">
-            {/* Контент */}
-            {activeTab === 'deals' && (
-              <Deals
-                transactions={transactions}
-                paymentMethods={paymentMethods}
-                merchants={merchants}
-                onUpdateTransaction={handleUpdateTransaction}
-              />
-            )}
-            {activeTab === 'appeals' && (
-              <Appeals
-                transactions={transactions}
-                paymentMethods={paymentMethods}
-                merchants={merchants}
-                onUpdateTransaction={handleUpdateTransaction}
-              />
-            )}
-            {activeTab === 'payouts' && (
-              <Payouts
-                payoutRequests={payoutRequests}
-                paymentMethods={paymentMethods}
-                user={user}
-                getAuthHeaders={getAuthHeaders}
-                onAccept={handleAcceptPayout}
-                onComplete={handleCompletePayout}
-                onCancel={handleCancelPayout}
-              />
-            )}
-            {activeTab === 'history' && (
-              <History
-                payoutRequests={payoutRequests}
-                transactions={transactions}
-                getAuthHeaders={getAuthHeaders}
-                onTabChange={setActiveTab}
-                user={user}
-              />
-            )}
-            {activeTab === 'devices' && (
-              <Devices
-                stats={stats}
-                payoutRequests={payoutRequests}
-                getAuthHeaders={getAuthHeaders}
-                onTabChange={setActiveTab}
-                onDeviceAdded={fetchMerchantDevices}
-              />
-            )}
-            {activeTab === 'shop' && (
-              <Shop
-                getAuthHeaders={getAuthHeaders}
-                stats={stats}
-                onPurchaseComplete={() => {
-                  fetchStats();
-                  fetchTransactions();
-                }}
-              />
-            )}
-            {activeTab === 'settings' && (
-              <Settings
-                user={user}
-                token={token}
-                getAuthHeaders={getAuthHeaders}
-                onUserUpdate={(profile) => {
-                  if (profile) {
-                    setUser((u) => ({ ...u, ...profile }));
-                    localStorage.setItem('enterPayUser', JSON.stringify({ ...user, ...profile }));
-                  }
-                }}
-              />
-            )}
-            {activeTab === 'merchants' && (
+        <div className="ep-page" style={{ display: activeTab === 'deals' ? 'block' : 'none' }}>
+          <Deals
+            transactions={transactions}
+            paymentMethods={paymentMethods}
+            merchants={merchants}
+            onUpdateTransaction={handleUpdateTransaction}
+          />
+        </div>
+        <div className="ep-page" style={{ display: activeTab === 'appeals' ? 'block' : 'none' }}>
+          <Appeals
+            transactions={transactions}
+            paymentMethods={paymentMethods}
+            merchants={merchants}
+            onUpdateTransaction={handleUpdateTransaction}
+          />
+        </div>
+        <div className="ep-page" style={{ display: activeTab === 'payouts' ? 'block' : 'none' }}>
+          <Payouts
+            payoutRequests={payoutRequests}
+            paymentMethods={paymentMethods}
+            user={user}
+            getAuthHeaders={getAuthHeaders}
+            onAccept={handleAcceptPayout}
+            onComplete={handleCompletePayout}
+            onCancel={handleCancelPayout}
+          />
+        </div>
+        <div className="ep-page" style={{ display: activeTab === 'history' ? 'block' : 'none' }}>
+          <History
+            payoutRequests={payoutRequests}
+            transactions={transactions}
+            getAuthHeaders={getAuthHeaders}
+            onTabChange={setActiveTab}
+            user={user}
+          />
+        </div>
+        <div className="ep-page" style={{ display: activeTab === 'devices' ? 'block' : 'none' }}>
+          <Devices
+            stats={stats}
+            payoutRequests={payoutRequests}
+            getAuthHeaders={getAuthHeaders}
+            onTabChange={setActiveTab}
+            onDeviceAdded={fetchMerchantDevices}
+          />
+        </div>
+        <div className="ep-page" style={{ display: activeTab === 'shop' ? 'block' : 'none' }}>
+          <Shop
+            getAuthHeaders={getAuthHeaders}
+            stats={stats}
+            onPurchaseComplete={() => {
+              fetchStats();
+              fetchTransactions();
+            }}
+          />
+        </div>
+        <div className="ep-page" style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
+          <Settings
+            user={user}
+            token={token}
+            getAuthHeaders={getAuthHeaders}
+            onUserUpdate={(profile) => {
+              if (profile) {
+                setUser((u) => ({ ...u, ...profile }));
+                localStorage.setItem('enterPayUser', JSON.stringify({ ...user, ...profile }));
+              }
+            }}
+          />
+        </div>
+        <div className="ep-page" style={{ display: activeTab === 'merchants' ? 'block' : 'none' }}>
               <div>
             <div style={{
               display: 'flex',
@@ -1039,10 +1038,10 @@ export default function App() {
               ))}
             </div>
           </div>
-            )}
+        </div>
 
             {/* Вкладка Транзакции */}
-            {activeTab === 'transactions' && (
+        <div className="ep-page" style={{ display: activeTab === 'transactions' ? 'block' : 'none' }}>
           <section style={{
             background: 'var(--bg-card)',
             padding: '2rem',
@@ -1182,10 +1181,10 @@ export default function App() {
               </div>
             )}
             </section>
-            )}
+        </div>
 
             {/* Вкладка Статистика */}
-            {activeTab === 'stats' && stats && (
+        <div className="ep-page" style={{ display: activeTab === 'stats' && stats ? 'block' : 'none' }}>
               <div>
             <div style={{
               display: 'grid',
@@ -1272,9 +1271,7 @@ export default function App() {
               </section>
               )}
               </div>
-            )}
-          </div>
-        )}
+        </div>
 
       {/* Модалки остаются такими же, но с улучшенным дизайном */}
       {/* Модалка: Депозит на счет мерчанта */}
@@ -1778,7 +1775,7 @@ export default function App() {
       )}
 
       {/* Модалка кошелька */}
-      {showRefModal && (
+      {showRefModal && user?.role !== 'shop' && (
         <Ref getAuthHeaders={getAuthHeaders} onClose={() => setShowRefModal(false)} />
       )}
       {showWalletModal && (

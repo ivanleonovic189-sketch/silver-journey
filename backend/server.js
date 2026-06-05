@@ -97,16 +97,53 @@ function resolveUserFromToken(token) {
   return safe;
 }
 
-// Middleware для проверки авторизации
+function resolveUserFromApiKey(db, apiKey) {
+  if (!apiKey || !String(apiKey).startsWith('merchant_')) return null;
+  initMerchants(db);
+  const merchant = (db.merchants || []).find(
+    (m) => m.apiKey === apiKey && m.enabled !== false
+  );
+  if (!merchant?.userId) return null;
+  const dbUser = findDbUser(db, merchant.userId);
+  if (!dbUser) return null;
+  const { password, ...safe } = dbUser;
+  return safe;
+}
+
+function checkApiIpWhitelist(dbUser, req) {
+  const settings = normalizeShopSettings(dbUser.settings);
+  const whitelist = String(settings.apiIpWhitelist || '').trim();
+  if (!whitelist) return true;
+  const forwarded = req.headers['x-forwarded-for'];
+  const clientIp = (typeof forwarded === 'string' ? forwarded.split(',')[0] : forwarded?.[0] || '')
+    .trim() || req.ip || req.socket?.remoteAddress || '';
+  const allowed = whitelist.split(/[\s,;]+/).filter(Boolean);
+  return allowed.some((ip) => clientIp === ip || clientIp.endsWith(ip));
+}
+
+// Middleware для проверки авторизации (JWT сессия или API Key магазина)
 function requireAuth(req, res, next) {
-  const token = req.headers.authorization?.replace('Bearer ', '') || req.headers['x-auth-token'];
+  const token =
+    req.headers.authorization?.replace(/^Bearer\s+/i, '') || req.headers['x-auth-token'];
   if (!token) {
     return res.status(401).json({ error: 'Требуется авторизация' });
   }
 
-  const user = resolveUserFromToken(token);
+  let user = resolveUserFromToken(token);
+  req.authViaApiKey = false;
   if (!user) {
-    return res.status(401).json({ error: 'Недействительный токен' });
+    const db = getDb();
+    user = resolveUserFromApiKey(db, token);
+    if (user) {
+      req.authViaApiKey = true;
+      const dbUser = findDbUser(db, user.id);
+      if (dbUser && !checkApiIpWhitelist(dbUser, req)) {
+        return res.status(403).json({ error: 'IP-адрес не в whitelist API' });
+      }
+    }
+  }
+  if (!user) {
+    return res.status(401).json({ error: 'Недействительный токен или API Key' });
   }
 
   req.user = user;
@@ -152,6 +189,44 @@ function shopVerificationPayload(user) {
   };
 }
 
+function buildReferralCodeFromName(name) {
+  const code = String(name || '')
+    .trim()
+    .replace(/\s+/g, '')
+    .toUpperCase()
+    .replace(/[^A-ZА-ЯЁ0-9]/gi, '');
+  return code || null;
+}
+
+function assignReferralCode(db, name, excludeUserId) {
+  let base = buildReferralCodeFromName(name);
+  if (!base) base = 'USER';
+  let candidate = base;
+  let n = 1;
+  while (
+    db.users.some(
+      (u) =>
+        u.id !== excludeUserId &&
+        u.referralCode &&
+        u.referralCode.toUpperCase() === candidate.toUpperCase()
+    )
+  ) {
+    candidate = `${base}${n++}`;
+  }
+  return candidate;
+}
+
+function ensureUserReferralCode(db, user) {
+  if (!user || user.role !== 'merchant') return null;
+  const u = db.users.find((us) => us.id === user.id);
+  if (!u) return null;
+  if (!u.referralCode) {
+    u.referralCode = assignReferralCode(db, u.name, u.id);
+    saveDb(db);
+  }
+  return u.referralCode;
+}
+
 // Регистрация
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -186,7 +261,7 @@ app.post('/api/auth/register', async (req, res) => {
     name: String(name),
     telegram: String(telegram).trim(),
     role: String(role),
-    referralCode: null,
+    referralCode: role === 'merchant' ? assignReferralCode(db, name, null) : null,
     referrerId: referrerId,
     createdAt: new Date().toISOString(),
     verified: role === 'shop' ? false : true,
@@ -291,39 +366,22 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // Реферальная программа
 app.get('/api/referral', requireAuth, (req, res) => {
   const db = getDb();
-  const user = req.user;
+  if (req.user.role !== 'merchant') {
+    return res.status(403).json({ error: 'Реферальная программа недоступна' });
+  }
+  const code = ensureUserReferralCode(db, req.user);
   const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  const referralLink = user.referralCode ? `${baseUrl}#ref=${user.referralCode}` : null;
-  const referrals = db.users.filter(u => u.referrerId === user.id);
-  const referralRewards = (db.transactions || []).filter(t => t.type === 'referral_reward' && String(t.referrerId) === String(user.id));
-  const referralEarnings = referralRewards.reduce((sum, t) => sum + (t.amount || 0), 0);
-  const referredVolume = referralRewards.reduce((sum, t) => sum + (t.baseAmount || t.amount || 0), 0);
+  const referralLink = code ? `${baseUrl}#ref=${encodeURIComponent(code)}` : null;
   res.json({
     referralLink,
-    referralCode: user.referralCode,
-    referralsCount: referrals.length,
-    referralEarnings,
-    referredVolume,
+    referralCode: code,
+    displayName: req.user.name,
   });
 });
 
-// Установить свой реферальный код (пользователь создаёт сам)
-app.patch('/api/referral/set-code', requireAuth, (req, res) => {
-  const db = getDb();
-  const { code } = req.body || {};
-  const raw = String(code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (raw.length < 3 || raw.length > 20) {
-    return res.status(400).json({ error: 'Код должен быть от 3 до 20 символов (лат. буквы и цифры)' });
-  }
-  const existing = db.users.find(u => u.referralCode && u.referralCode.toUpperCase() === raw && u.id !== req.user.id);
-  if (existing) {
-    return res.status(400).json({ error: 'Этот код уже занят' });
-  }
-  const u = db.users.find(us => us.id === req.user.id);
-  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
-  u.referralCode = raw;
-  saveDb(db);
-  res.json({ referralCode: raw });
+// Устарело: код задаётся автоматически по нику
+app.patch('/api/referral/set-code', requireAuth, (_req, res) => {
+  res.status(410).json({ error: 'Реферальный код формируется автоматически по вашему нику' });
 });
 
 // Выход (JWT — stateless, клиент удаляет токен)
@@ -374,6 +432,9 @@ app.post('/api/admin/verify-user', (req, res) => {
 // ========== НАСТРОЙКИ (паблишер / казино) ==========
 
 const DEFAULT_PUBLISHER_SETTINGS = {
+  shopSetupComplete: false,
+  shopName: '',
+  paymentMethodsNeeded: [],
   casinoSiteUrl: '',
   landingPageUrl: '',
   defaultSubId: '',
@@ -390,17 +451,53 @@ const DEFAULT_PUBLISHER_SETTINGS = {
   notifyTelegramAppeals: true,
   notifyMinAmount: 1000,
   apiIpWhitelist: '',
+  integrationMethod: 'h2h',
   autoAcceptPayouts: false,
   holdPeriodHours: 0,
   revshareDisplay: true,
 };
+
+const SHOP_PAYMENT_METHODS = ['sbp', 'card_ru'];
+
+function normalizeShopSettings(settings) {
+  const merged = { ...DEFAULT_PUBLISHER_SETTINGS, ...(settings || {}) };
+  if (!Array.isArray(merged.paymentMethodsNeeded)) {
+    merged.paymentMethodsNeeded = [];
+  }
+  merged.paymentMethodsNeeded = merged.paymentMethodsNeeded.filter((m) =>
+    SHOP_PAYMENT_METHODS.includes(m)
+  );
+  merged.shopName = String(merged.shopName || '').trim().slice(0, 80);
+  if (!['h2h', 'p2p'].includes(merged.integrationMethod)) {
+    merged.integrationMethod = 'h2h';
+  }
+  if (merged.shopName && merged.paymentMethodsNeeded.length > 0) {
+    merged.shopSetupComplete = true;
+  }
+  return merged;
+}
+
+function applyShopSetupToMerchant(db, user, settings) {
+  if (!user || user.role !== 'shop' || !settings.shopSetupComplete) return;
+  ensureShopMerchant(db, user);
+  const merchant = getUserMerchant(db, user.id);
+  if (merchant && settings.shopName) {
+    merchant.name = `${settings.shopName} (магазин)`;
+  }
+  if (settings.shopName && user.name !== settings.shopName) {
+    user.name = settings.shopName;
+  }
+  if (merchant && settings.casinoSiteUrl) {
+    merchant.siteUrl = String(settings.casinoSiteUrl).trim().slice(0, 256);
+  }
+}
 
 app.get('/api/settings', requireAuth, (req, res) => {
   const db = getDb();
   initMerchants(db);
   const u = findDbUser(db, req.user.id) || req.user;
   const merchant = (db.merchants || []).find(m => String(m.userId) === String(u.id));
-  const settings = { ...DEFAULT_PUBLISHER_SETTINGS, ...(u.settings || {}) };
+  const settings = normalizeShopSettings(u.settings);
   res.json({
     settings,
     profile: {
@@ -431,10 +528,28 @@ app.patch('/api/settings', requireAuth, (req, res) => {
   }
 
   if (settings && typeof settings === 'object') {
-    const merged = { ...DEFAULT_PUBLISHER_SETTINGS, ...(u.settings || {}) };
+    const merged = normalizeShopSettings({ ...(u.settings || {}), ...settings });
+
+    if (Array.isArray(settings.paymentMethodsNeeded)) {
+      merged.paymentMethodsNeeded = settings.paymentMethodsNeeded.filter((m) =>
+        SHOP_PAYMENT_METHODS.includes(m)
+      );
+    }
+    if (settings.shopName != null) {
+      merged.shopName = String(settings.shopName).trim().slice(0, 80);
+    }
+    if (settings.casinoSiteUrl != null) {
+      merged.casinoSiteUrl = String(settings.casinoSiteUrl).trim().slice(0, 256);
+    }
+
     const allowed = Object.keys(DEFAULT_PUBLISHER_SETTINGS);
     for (const key of allowed) {
-      if (settings[key] !== undefined) merged[key] = settings[key];
+      if (['shopName', 'paymentMethodsNeeded', 'shopSetupComplete', 'casinoSiteUrl'].includes(key)) {
+        continue;
+      }
+      if (settings[key] !== undefined) {
+        merged[key] = settings[key];
+      }
     }
     if (typeof merged.notifyMinAmount === 'string') {
       merged.notifyMinAmount = parseInt(merged.notifyMinAmount, 10) || 0;
@@ -444,7 +559,17 @@ app.patch('/api/settings', requireAuth, (req, res) => {
     }
     merged.notifyMinAmount = Math.max(0, Number(merged.notifyMinAmount) || 0);
     merged.holdPeriodHours = Math.max(0, Math.min(168, Number(merged.holdPeriodHours) || 0));
-    u.settings = merged;
+    if (u.role === 'shop') {
+      if (merged.shopName && merged.paymentMethodsNeeded.length > 0) {
+        merged.shopSetupComplete = true;
+      }
+      try {
+        applyShopSetupToMerchant(db, u, merged);
+      } catch (err) {
+        console.error('applyShopSetupToMerchant error:', err);
+      }
+    }
+    u.settings = normalizeShopSettings(merged);
   }
 
   saveDb(db);
@@ -1072,6 +1197,127 @@ app.post('/api/payout-requests/:id/cancel', requireAuth, (req, res) => {
   res.json(request);
 });
 
+// ========== АПЕЛЛЯЦИИ КАЗИНО (магазин создаёт спор по выводу/депозиту) ==========
+
+const SHOP_APPEAL_TYPES = ['withdrawal', 'deposit', 'other'];
+const SHOP_APPEAL_STATUSES = ['pending', 'in_review', 'resolved', 'rejected', 'cancelled'];
+
+function initShopAppeals(db) {
+  if (!Array.isArray(db.shopAppeals)) db.shopAppeals = [];
+}
+
+app.get('/api/shop-appeals', requireAuth, (req, res) => {
+  const db = getDb();
+  initShopAppeals(db);
+  const { status } = req.query;
+  let appeals = db.shopAppeals || [];
+
+  if (req.user.role === 'shop') {
+    appeals = appeals.filter((a) => String(a.shopUserId) === String(req.user.id));
+  } else if (req.user.role !== 'merchant') {
+    return res.status(403).json({ error: 'Нет доступа к апелляциям' });
+  }
+
+  if (status && status !== 'all') {
+    appeals = appeals.filter((a) => a.status === status);
+  }
+  appeals.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.json(appeals);
+});
+
+app.post('/api/shop-appeals', requireAuth, (req, res) => {
+  if (req.user.role !== 'shop') {
+    return res.status(403).json({ error: 'Только казино может создавать апелляции' });
+  }
+  const db = getDb();
+  initShopAppeals(db);
+  initPayoutRequests(db);
+  const u = ensureShopVerificationFields(db, findDbUser(db, req.user.id) || req.user);
+  if (!isShopVerified(u)) {
+    return res.status(403).json({ error: 'Аккаунт не подтверждён. Напишите в Telegram @d33dd33d' });
+  }
+
+  const { type, payoutRequestId, externalId, amount, description, id: playerIdField } = req.body || {};
+  if (!type || !SHOP_APPEAL_TYPES.includes(type)) {
+    return res.status(400).json({ error: 'type: withdrawal, deposit или other' });
+  }
+  const desc = String(description || '').trim();
+  if (!desc) {
+    return res.status(400).json({ error: 'Укажите описание проблемы' });
+  }
+
+  let payoutId = null;
+  if (payoutRequestId != null && payoutRequestId !== '') {
+    payoutId = parseInt(payoutRequestId, 10);
+    const payout = db.payoutRequests.find((r) => r.id === payoutId);
+    if (!payout || String(payout.shopUserId) !== String(req.user.id)) {
+      return res.status(400).json({ error: 'Заявка на вывод не найдена' });
+    }
+  }
+
+  const amountNum = amount != null && amount !== '' ? Number(amount) : null;
+  if (amountNum != null && (Number.isNaN(amountNum) || amountNum < 0)) {
+    return res.status(400).json({ error: 'Некорректная сумма' });
+  }
+
+  const playerId = playerIdField ?? externalId;
+
+  const appeal = {
+    id: nextId(db.shopAppeals),
+    shopUserId: req.user.id,
+    shopName: u.name || '',
+    type,
+    payoutRequestId: payoutId,
+    externalId: playerId != null && playerId !== '' ? String(playerId).slice(0, 64) : null,
+    amount: amountNum,
+    description: desc.slice(0, 2000),
+    status: 'pending',
+    resolution: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  db.shopAppeals.push(appeal);
+  saveDb(db);
+  res.status(201).json(appeal);
+});
+
+app.patch('/api/shop-appeals/:id', requireAuth, (req, res) => {
+  const db = getDb();
+  initShopAppeals(db);
+  const id = parseInt(req.params.id, 10);
+  const appeal = db.shopAppeals.find((a) => a.id === id);
+  if (!appeal) return res.status(404).json({ error: 'Апелляция не найдена' });
+
+  const { status, resolution } = req.body || {};
+
+  if (req.user.role === 'shop') {
+    if (String(appeal.shopUserId) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Нет доступа' });
+    }
+    if (status === 'cancelled' && appeal.status === 'pending') {
+      appeal.status = 'cancelled';
+      appeal.updatedAt = new Date().toISOString();
+      saveDb(db);
+      return res.json(appeal);
+    }
+    return res.status(403).json({ error: 'Казино может только отменить апелляцию в статусе «ожидает»' });
+  }
+
+  if (req.user.role === 'merchant') {
+    if (status && SHOP_APPEAL_STATUSES.includes(status) && status !== 'cancelled') {
+      appeal.status = status;
+    }
+    if (resolution != null) {
+      appeal.resolution = String(resolution).trim().slice(0, 2000);
+    }
+    appeal.updatedAt = new Date().toISOString();
+    saveDb(db);
+    return res.json(appeal);
+  }
+
+  return res.status(403).json({ error: 'Нет доступа' });
+});
+
 // ========== УСТРОЙСТВА (РЕКВИЗИТЫ МЕРЧАНТА) ==========
 
 function initMerchantDevices(db) {
@@ -1204,6 +1450,11 @@ app.get('/api/stats', requireAuth, (req, res) => {
       (t) => t.type === 'deposit' || t.type === 'merchant_deposit' || t.direction === 'in'
     );
     const completedWithdrawals = shopPayouts.filter((r) => r.status === 'completed');
+    initShopAppeals(db);
+    const dbUser = findDbUser(db, req.user.id);
+    const shopAppeals = (db.shopAppeals || []).filter(
+      (a) => String(a.shopUserId) === String(req.user.id)
+    );
     const stats = {
       role: 'shop',
       balance,
@@ -1218,6 +1469,9 @@ app.get('/api/stats', requireAuth, (req, res) => {
         .filter((t) => t.status === 'completed')
         .reduce((s, t) => s + (t.amount || 0), 0),
       depositsPending: deposits.filter((t) => t.status === 'pending').length,
+      appealsTotal: shopAppeals.length,
+      appealsPending: shopAppeals.filter((a) => a.status === 'pending' || a.status === 'in_review').length,
+      siteUrl: merchant?.siteUrl || normalizeShopSettings(dbUser?.settings).casinoSiteUrl || '',
     };
     return res.json(stats);
   }
@@ -1268,14 +1522,14 @@ app.get('/api/stats', requireAuth, (req, res) => {
 
 // ========== МАГАЗИН (P2P для питупишеров) ==========
 
-const SHOP_CATALOG_VERSION = 8;
+const SHOP_CATALOG_VERSION = 9;
 
 function getShopCatalog() {
   return [
     {
       id: 13,
       title: 'ЛК Ozon Банк',
-      description: 'Вход в личный кабинет Ozon Банка. Логин и пароль, без карты.',
+      description: '',
       category: 'bank_lk',
       price: 2000,
       currency: '₽',
@@ -1287,7 +1541,7 @@ function getShopCatalog() {
     {
       id: 6,
       title: 'ЛК ВТБ',
-      description: 'Вход в личный кабинет ВТБ. Логин и пароль, без карты.',
+      description: '',
       category: 'bank_lk',
       price: 3000,
       currency: '₽',
@@ -1299,7 +1553,7 @@ function getShopCatalog() {
     {
       id: 5,
       title: 'ЛК Т-Банк',
-      description: 'Вход в личный кабинет Т-Банка. Логин и пароль, без карты.',
+      description: '',
       category: 'bank_lk',
       price: 3800,
       currency: '₽',
@@ -1311,7 +1565,7 @@ function getShopCatalog() {
     {
       id: 4,
       title: 'ЛК Сбербанк',
-      description: 'Вход в личный кабинет Сбербанка. Логин и пароль, без карты.',
+      description: '',
       category: 'bank_lk',
       price: 5000,
       currency: '₽',
@@ -1323,7 +1577,7 @@ function getShopCatalog() {
     {
       id: 10,
       title: 'ЛК Альфа-Банк',
-      description: 'Вход в личный кабинет Альфа-Банка. Логин и пароль, без карты.',
+      description: '',
       category: 'bank_lk',
       price: 7500,
       currency: '₽',
@@ -1335,7 +1589,7 @@ function getShopCatalog() {
     {
       id: 12,
       title: 'Аккаунт Госуслуги',
-      description: 'Вход в личный кабинет Госуслуг (УЗ-1). Логин, пароль и СНИЛС.',
+      description: '',
       category: 'services',
       price: 4500,
       currency: '₽',

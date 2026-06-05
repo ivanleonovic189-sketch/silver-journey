@@ -3,8 +3,98 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
     <title>Enter Pay</title>
     <link rel="icon" type="image/webp" href="/usdt.webp" />
+    <style id="ep-boot-styles">
+      html {
+        background: #0d0e11;
+        color-scheme: dark;
+      }
+      html[data-theme='light'] {
+        background: #f5f6f8;
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        min-height: 100dvh;
+        background: inherit;
+        font-family: 'Onest', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      #root {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        background: inherit;
+      }
+      .ep-boot {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        background: inherit;
+        padding: env(safe-area-inset-top) 1rem env(safe-area-inset-bottom);
+      }
+      .ep-boot__title {
+        position: relative;
+        font-size: 2.25rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+        white-space: nowrap;
+      }
+      .ep-boot__enter {
+        color: #61656f;
+      }
+      .ep-boot__pay {
+        color: #2f6bff;
+      }
+      .ep-boot__title-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        color: #f1f2f5;
+        clip-path: inset(0 100% 0 0);
+        animation: epBootFill 1.2s ease-out forwards;
+        white-space: nowrap;
+      }
+      html[data-theme='light'] .ep-boot__enter {
+        color: #8b909b;
+      }
+      html[data-theme='light'] .ep-boot__pay {
+        color: #2563eb;
+      }
+      html[data-theme='light'] .ep-boot__title-fill {
+        color: #16181d;
+      }
+      .ep-boot__sub {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #9a9ea8;
+      }
+      html[data-theme='light'] .ep-boot__sub {
+        color: #5d626d;
+      }
+      @keyframes epBootFill {
+        to {
+          clip-path: inset(0 0 0 0);
+        }
+      }
+    </style>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('enterPayTheme');
+          if (theme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -13,7 +103,27 @@
     />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="ep-boot" aria-busy="true" aria-label="Загрузка Enter Pay">
+        <div class="ep-boot__title">
+          <span class="ep-boot__enter">Enter </span><span class="ep-boot__pay">Pay</span>
+          <span class="ep-boot__title-fill" aria-hidden="true">Enter</span>
+        </div>
+        <p class="ep-boot__sub" id="ep-boot-sub" hidden>Загружаем ваш кабинет…</p>
+      </div>
+    </div>
+    <script>
+      (function () {
+        try {
+          var token = localStorage.getItem('enterPayToken');
+          var user = localStorage.getItem('enterPayUser');
+          if (token && user && token.indexOf('.') !== -1) {
+            var sub = document.getElementById('ep-boot-sub');
+            if (sub) sub.hidden = false;
+          }
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

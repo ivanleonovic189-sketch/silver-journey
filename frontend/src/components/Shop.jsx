@@ -173,7 +173,6 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [category, setCategory] = useState('all');
-  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('catalog');
   const [selected, setSelected] = useState(null);
   const [buying, setBuying] = useState(false);
@@ -181,14 +180,12 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
   const [successOrder, setSuccessOrder] = useState(null);
 
   const balance = stats?.balance ?? stats?.totalAmount ?? 0;
-  const initialLoadDone = useRef(false);
   const getAuthHeadersRef = useRef(getAuthHeaders);
   getAuthHeadersRef.current = getAuthHeaders;
 
-  const load = useCallback(async ({ showLoader = false } = {}) => {
+  const load = useCallback(async () => {
     const auth = getAuthHeadersRef.current;
     if (!auth) return;
-    if (showLoader || !initialLoadDone.current) setLoading(true);
     setError('');
     try {
       const headers = auth();
@@ -199,16 +196,13 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
       ]);
       if (prodRes.ok) setProducts(await prodRes.json());
       if (ordRes.ok) setOrders(await ordRes.json());
-      initialLoadDone.current = true;
     } catch {
       setError('Не удалось загрузить магазин');
-    } finally {
-      setLoading(false);
     }
   }, [category]);
 
   useEffect(() => {
-    load({ showLoader: true });
+    load();
   }, [category, load]);
 
   const handleBuy = async () => {
@@ -247,18 +241,8 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
 
   return (
     <div className="ep-page" style={{ maxWidth: '1200px' }}>
-      <div
-        style={{
-          background: 'var(--bg-card)',
-          borderRadius: '16px',
-          border: '1px solid var(--border-light)',
-          padding: '1.75rem 2rem',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <div>
-          <EnterShopLogo size="lg" />
-        </div>
+      <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+        <EnterShopLogo size="lg" />
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
@@ -286,9 +270,7 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
             ))}
           </div>
 
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Загрузка…</div>
-          ) : products.length === 0 ? (
+          {products.length === 0 ? (
             <div style={{ background: 'var(--bg-card)', borderRadius: '16px', padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px solid var(--border-light)' }}>
               В этой категории пока нет товаров
             </div>
@@ -315,9 +297,7 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
                       {CATEGORY_LABELS[p.category] || p.category}
                     </span>
                   </div>
-                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text)', lineHeight: 1.35 }}>{p.title}</h3>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5, flex: 1 }}>{p.description}</p>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-light)' }}>Мгновенная выдача на сайте</div>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text)', lineHeight: 1.35, flex: 1 }}>{p.title}</h3>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.25rem' }}>
                     <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)' }}>
                       {p.price.toLocaleString()} {p.currency || '₽'}
@@ -339,9 +319,7 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
 
       {tab === 'orders' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Загрузка…</div>
-          ) : orders.length === 0 ? (
+          {orders.length === 0 ? (
             <div style={{ background: 'var(--bg-card)', borderRadius: '16px', padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px solid var(--border-light)' }}>
               Заказов пока нет
             </div>
@@ -351,7 +329,7 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: o.delivery ? 0 : undefined }}>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-                      Заказ #{o.id} · {new Date(o.createdAt).toLocaleString('ru')}
+                      Заказ #{o.id} {new Date(o.createdAt).toLocaleString('ru')}
                     </div>
                     <div style={{ fontWeight: 600, color: 'var(--text)' }}>{o.productTitle}</div>
                   </div>
@@ -389,9 +367,6 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
               </div>
               <div>Списание с основного баланса. Товар будет выдан в «Мои заказы»</div>
             </div>
-            {balance < selected.price && (
-              <div style={{ color: 'var(--error)', fontSize: '0.85rem', marginBottom: '1rem' }}>Недостаточно средств. Пополните баланс в кошельке.</div>
-            )}
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button type="button" disabled={buying || balance < selected.price} onClick={handleBuy} style={{ flex: 1, padding: '0.875rem', background: buying || balance < selected.price ? 'var(--bg-card-hover)' : 'var(--accent)', color: buying || balance < selected.price ? 'var(--text-muted)' : '#fff', border: 'none', borderRadius: '10px', fontWeight: 600, cursor: buying || balance < selected.price ? 'not-allowed' : 'pointer' }}>
                 {buying ? 'Оплата…' : 'Оплатить с баланса'}

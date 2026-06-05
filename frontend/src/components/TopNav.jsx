@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   RefIcon,
   SettingsIcon,
   LogoutIcon,
-  WalletIcon,
   ThemeIcon,
   UserAvatarIcon,
 } from './Icons';
@@ -11,6 +10,22 @@ import EnterPayLogo from './EnterPayLogo';
 
 export default function TopNav({ activeTab, onTabChange, onLogout, user, balance, onWalletClick, onRefClick, theme, onThemeToggle, merchantDevices = [] }) {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const hideDropdownTimer = useRef(null);
+
+  const openUserDropdown = () => {
+    if (hideDropdownTimer.current) {
+      clearTimeout(hideDropdownTimer.current);
+      hideDropdownTimer.current = null;
+    }
+    setShowUserDropdown(true);
+  };
+
+  const closeUserDropdown = () => {
+    hideDropdownTimer.current = setTimeout(() => {
+      setShowUserDropdown(false);
+    }, 120);
+  };
+
   const menuItems = [
     { id: 'dashboard', label: 'Главная', icon: null },
     { id: 'deals', label: 'Сделки', icon: null },
@@ -21,7 +36,7 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
     { id: 'shop', label: 'Магазин', icon: null },
   ];
 
-  // Закрываем dropdown при клике вне его
+  // Закрываем dropdown при клике вне его (touch)
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (showUserDropdown && !event.target.closest('[data-user-dropdown]')) {
@@ -118,63 +133,40 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
           style={{
             padding: '0.5rem',
             background: 'transparent',
-            border: '1px solid var(--border-light)',
+            border: 'none',
             borderRadius: '8px',
             color: 'var(--text-muted)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'all 0.15s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--bg-card-hover)';
-            e.currentTarget.style.borderColor = 'var(--border)';
-            e.currentTarget.style.color = 'var(--text)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.borderColor = 'var(--border-light)';
-            e.currentTarget.style.color = 'var(--text-muted)';
           }}
           title={theme === 'dark' ? 'Переключить на светлую тему' : 'Переключить на темную тему'}
         >
           <ThemeIcon size={18} color="currentColor" />
         </button>
 
-        {/* Баланс */}
-        <div
+        <button
+          type="button"
           onClick={onWalletClick}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 1rem',
+            padding: 0,
             background: 'transparent',
-            border: '1px solid var(--border-light)',
-            borderRadius: '8px',
+            border: 'none',
             cursor: 'pointer',
-            transition: 'all 0.15s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--bg-card-hover)';
-            e.currentTarget.style.borderColor = 'var(--border)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.borderColor = 'var(--border-light)';
+            color: 'var(--text)',
+            fontSize: '0.95rem',
+            fontWeight: 600,
           }}
         >
-          <span style={{ color: 'var(--text)', fontSize: '0.95rem', fontWeight: 600 }}>
-            {balance?.toLocaleString() || 0} ₽
-          </span>
-          <WalletIcon size={18} color="var(--text-muted)" />
-        </div>
+          {(balance ?? 0).toLocaleString('ru-RU')} ₽
+        </button>
 
         {/* Пользователь - аватарка с dropdown */}
         <div style={{ position: 'relative' }} data-user-dropdown>
-          <button
-            onClick={() => setShowUserDropdown(!showUserDropdown)}
+          <div onMouseEnter={openUserDropdown} onMouseLeave={closeUserDropdown}>
+            <button
+              onClick={() => setShowUserDropdown((v) => !v)}
             style={{
               padding: '0',
               background: 'transparent',
@@ -201,33 +193,27 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
           >
             <UserAvatarIcon size={40} color="var(--bg-card-hover)" />
           </button>
+          </div>
           
-          {/* Dropdown меню */}
           {showUserDropdown && (
-            <>
-              {/* Overlay для закрытия при клике вне */}
               <div
-                style={{
-                  position: 'fixed',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  zIndex: 999,
-                }}
-                onClick={() => setShowUserDropdown(false)}
-              />
-              <div
+                onMouseEnter={openUserDropdown}
+                onMouseLeave={closeUserDropdown}
                 style={{
                   position: 'absolute',
-                  top: 'calc(100% + 0.5rem)',
+                  top: 'calc(100% - 4px)',
                   right: 0,
+                  paddingTop: '4px',
+                  zIndex: 1000,
+                }}
+              >
+              <div
+                style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-light)',
                   borderRadius: '12px',
                   minWidth: '200px',
                   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
-                  zIndex: 1000,
                   overflow: 'hidden',
                 }}
               >
@@ -273,7 +259,7 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
                   <span>Настройки</span>
                 </button>
                 
-                {/* Реферальная ссылка */}
+                {user?.role !== 'shop' && (
                 <button
                   onClick={() => {
                     setShowUserDropdown(false);
@@ -303,6 +289,7 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
                   <RefIcon size={18} color="currentColor" />
                   <span>Реферальная ссылка</span>
                 </button>
+                )}
                 
                 {/* Разделитель */}
                 <div style={{ height: '1px', background: 'var(--border-light)', margin: '0.5rem 0' }} />
@@ -338,7 +325,7 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
                   <span>Выход</span>
                 </button>
               </div>
-            </>
+              </div>
           )}
         </div>
       </div>

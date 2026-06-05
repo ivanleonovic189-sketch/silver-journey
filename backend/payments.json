@@ -101,6 +101,43 @@
       "enabled": true,
       "userId": 3,
       "createdAt": "2026-06-04T20:51:40.669Z"
+    },
+    {
+      "id": 4,
+      "name": "dsasdasad (мерчант)",
+      "apiKey": "merchant_d35c88689b561712960e9b0a3585e0d4",
+      "balance": 0,
+      "enabled": true,
+      "userId": 5,
+      "createdAt": "2026-06-05T03:07:49.748Z"
+    },
+    {
+      "id": 5,
+      "name": "dasasdasd (казино)",
+      "apiKey": "merchant_76872a5fd608874652674c93262027d1",
+      "balance": 0,
+      "enabled": true,
+      "userId": 9,
+      "createdAt": "2026-06-05T03:25:03.099Z"
+    },
+    {
+      "id": 6,
+      "name": "sadsadsad (магазин)",
+      "apiKey": "merchant_b25e0c8830f50a7b221b31f8192fceb8",
+      "balance": 0,
+      "enabled": true,
+      "userId": 10,
+      "createdAt": "2026-06-05T03:46:28.507Z",
+      "siteUrl": "https://zooma.casino"
+    },
+    {
+      "id": 7,
+      "name": "sdasadads (мерчант)",
+      "apiKey": "merchant_256493d03aa19cde554140ae59d8b06d",
+      "balance": 0,
+      "enabled": true,
+      "userId": 11,
+      "createdAt": "2026-06-05T05:17:06.138Z"
     }
   ],
   "merchantDevices": [
@@ -130,7 +167,8 @@
   "kycVerifications": [],
   "config": {
     "name": "Enter Pay",
-    "currency": "₽"
+    "currency": "₽",
+    "shopCatalogVersion": 8
   },
   "users": [
     {
@@ -164,6 +202,155 @@
       "referralCode": null,
       "referrerId": null,
       "createdAt": "2026-06-04T20:51:40.669Z"
+    },
+    {
+      "id": 4,
+      "email": "asdasdadssad@yandex.ru",
+      "password": "035311595e0e9f3ce2c05f590fe4ebf977dab9992a7f9caef291c1f5c6053e22",
+      "name": "saddsaasd",
+      "telegram": "@sadsadsdaSADSAD",
+      "role": "shop",
+      "referralCode": null,
+      "referrerId": null,
+      "createdAt": "2026-06-05T03:06:26.114Z",
+      "verified": false,
+      "verificationCode": "EP-LOCAL1"
+    },
+    {
+      "id": 5,
+      "email": "adsadsadssad@yandex.ru",
+      "password": "9f9e6d27934b7865ba312994d5ae2da1d9b62031f370a169cab16ae369c5850b",
+      "name": "dsasdasad",
+      "telegram": "@sdasadasd",
+      "role": "merchant",
+      "referralCode": null,
+      "referrerId": null,
+      "createdAt": "2026-06-05T03:07:49.747Z"
+    },
+    {
+      "id": 6,
+      "email": "asdsadasdasd@yandex.ru",
+      "password": "dcfc8d9e7b385f5567ffb36c42d92a95d6b2ad839493ad460c65c38624c6d4e2",
+      "name": "asdadssadsad",
+      "telegram": "@adsdsasdaasd",
+      "role": "shop",
+      "referralCode": null,
+      "referrerId": null,
+      "createdAt": "2026-06-05T03:08:13.729Z"
+    },
+    {
+      "id": 7,
+      "email": "sadsadasd@yandex.ru",
+      "password": "c87a8049dd38ca255225a441ea3733f5332d293d12868521dcb2fbb7bce38d7d",
+      "name": "asdasdsadsda",
+      "telegram": "sadasdsad",
+      "role": "shop",
+      "referralCode": null,
+      "referrerId": null,
+      "createdAt": "2026-06-05T03:11:12.542Z"
+    },
+    {
+      "id": 8,
+      "email": "asdasdsad@yandex.ru",
+      "password": "fd9df53995e3f61dd5841f18525275f5f32356387dc772c01a8e1289065c91f7",
+      "name": "adssadadsasd",
+      "telegram": "sadasdasdadsasd",
+      "role": "shop",
+      "referralCode": null,
+      "referrerId": null,
+      "createdAt": "2026-06-05T03:16:03.472Z",
+      "verificationCode": "EP-80ECE3",
+      "verified": true,
+      "verifiedAt": "2026-06-05T03:21:37.007Z"
+    },
+    {
+      "id": 9,
+      "email": "sadadssadasd@yandex.ru",
+      "password": "e1b553aebcfddffef88dba7a2a167a983ffecdfd4d0e64516e301805d61e1cfa",
+      "name": "Zooma",
+      "telegram": "@sdaadssadasd",
+      "role": "shop",
+      "referralCode": null,
+      "referrerId": null,
+      "createdAt": "2026-06-05T03:25:03.099Z",
+      "verified": true,
+      "verificationCode": "EP-F4F9C9",
+      "verifiedAt": "2026-06-05T03:25:27.918Z",
+      "settings": {
+        "casinoSiteUrl": "https://zooma.casino",
+        "landingPageUrl": "",
+        "defaultSubId": "",
+        "trackingSource": "",
+        "trafficGeo": "RU,CIS",
+        "postbackUrl": "",
+        "postbackDeposit": true,
+        "postbackFirstDeposit": true,
+        "postbackWithdraw": false,
+        "postbackChargeback": true,
+        "postbackSecret": "",
+        "notifyTelegramDeposits": true,
+        "notifyTelegramPayouts": true,
+        "notifyTelegramAppeals": true,
+        "notifyMinAmount": 1000,
+        "apiIpWhitelist": "",
+        "autoAcceptPayouts": false,
+        "holdPeriodHours": 0,
+        "revshareDisplay": true
+      }
+    },
+    {
+      "id": 10,
+      "email": "sadasddassad@yandex.ru",
+      "password": "7aa199c4844fd571a234b9bfc7d07de136ba9e9852b62fc5ebc91cde88eab361",
+      "name": "sadsadsad",
+      "telegram": "@test",
+      "role": "shop",
+      "referralCode": null,
+      "referrerId": null,
+      "createdAt": "2026-06-05T03:46:28.506Z",
+      "verified": true,
+      "verificationCode": "EP-DFDDA4",
+      "verifiedAt": "2026-06-05T03:49:19.790Z",
+      "settings": {
+        "shopSetupComplete": true,
+        "shopName": "sadsadsad",
+        "paymentMethodsNeeded": [
+          "sbp",
+          "card_ru"
+        ],
+        "casinoSiteUrl": "https://zooma.casino",
+        "landingPageUrl": "",
+        "defaultSubId": "",
+        "trackingSource": "",
+        "trafficGeo": "RU,CIS",
+        "postbackUrl": "",
+        "postbackDeposit": true,
+        "postbackFirstDeposit": true,
+        "postbackWithdraw": false,
+        "postbackChargeback": true,
+        "postbackSecret": "",
+        "notifyTelegramDeposits": true,
+        "notifyTelegramPayouts": true,
+        "notifyTelegramAppeals": true,
+        "notifyMinAmount": 1000,
+        "apiIpWhitelist": "",
+        "autoAcceptPayouts": false,
+        "holdPeriodHours": 0,
+        "revshareDisplay": true
+      }
+    },
+    {
+      "id": 11,
+      "email": "adsasdasd@yandex.ru",
+      "password": "07e0d80571bea9e944ab22e2cab77add0dc05d598d050db96e5c7e6ec25ffb23",
+      "name": "sdasadads",
+      "telegram": "@asddasadsasd",
+      "role": "merchant",
+      "referralCode": null,
+      "referrerId": null,
+      "createdAt": "2026-06-05T05:17:06.130Z",
+      "verified": true,
+      "verificationCode": null
     }
   ],
   "sessions": [
@@ -208,6 +395,30 @@
       "userId": 3,
       "expiresAt": "2026-07-04T21:14:24.984Z",
       "createdAt": "2026-06-04T21:14:24.984Z"
+    },
+    {
+      "token": "f22fde36cc745838a8d0469a443fa9009b6cf9230b3838bfae8fb1debf3ffdd3",
+      "userId": 4,
+      "expiresAt": "2026-07-05T03:06:26.152Z",
+      "createdAt": "2026-06-05T03:06:26.152Z"
+    },
+    {
+      "token": "1f61087ec30d69a1d05e15ee10b3317d2608de78d69caf76760fa1b00888a602",
+      "userId": 6,
+      "expiresAt": "2026-07-05T03:08:13.730Z",
+      "createdAt": "2026-06-05T03:08:13.730Z"
+    },
+    {
+      "token": "2560b31c95b83b80350ee5b6eeb3439d6422df0ba6982ca050e7882a881be343",
+      "userId": 7,
+      "expiresAt": "2026-07-05T03:11:13.165Z",
+      "createdAt": "2026-06-05T03:11:13.165Z"
+    },
+    {
+      "token": "a2fb9abe48cad730f50213dd753ec63a42d8cd218085c55f120d31f4dcdc4efe",
+      "userId": 8,
+      "expiresAt": "2026-07-05T03:16:03.473Z",
+      "createdAt": "2026-06-05T03:16:03.473Z"
     }
   ],
   "payoutRequests": [
@@ -284,5 +495,81 @@
       "acceptedAt": "2026-02-14T00:22:17.278Z",
       "expiresAt": "2026-02-14T00:42:17.279Z"
     }
-  ]
+  ],
+  "shopAppeals": [],
+  "shopProducts": [
+    {
+      "id": 13,
+      "title": "ЛК Ozon Банк",
+      "description": "Вход в личный кабинет Ozon Банка. Логин и пароль, без карты.",
+      "category": "bank_lk",
+      "price": 2000,
+      "currency": "₽",
+      "image": "/shop/ozon.webp",
+      "bankName": "Ozon Банк",
+      "deliveryType": "bank_lk",
+      "enabled": true
+    },
+    {
+      "id": 6,
+      "title": "ЛК ВТБ",
+      "description": "Вход в личный кабинет ВТБ. Логин и пароль, без карты.",
+      "category": "bank_lk",
+      "price": 3000,
+      "currency": "₽",
+      "image": "/shop/vtb.webp",
+      "bankName": "ВТБ",
+      "deliveryType": "bank_lk",
+      "enabled": true
+    },
+    {
+      "id": 5,
+      "title": "ЛК Т-Банк",
+      "description": "Вход в личный кабинет Т-Банка. Логин и пароль, без карты.",
+      "category": "bank_lk",
+      "price": 3800,
+      "currency": "₽",
+      "image": "/shop/tbank.png",
+      "bankName": "Т-Банк",
+      "deliveryType": "bank_lk",
+      "enabled": true
+    },
+    {
+      "id": 4,
+      "title": "ЛК Сбербанк",
+      "description": "Вход в личный кабинет Сбербанка. Логин и пароль, без карты.",
+      "category": "bank_lk",
+      "price": 5000,
+      "currency": "₽",
+      "image": "/shop/sber.png",
+      "bankName": "Сбербанк",
+      "deliveryType": "bank_lk",
+      "enabled": true
+    },
+    {
+      "id": 10,
+      "title": "ЛК Альфа-Банк",
+      "description": "Вход в личный кабинет Альфа-Банка. Логин и пароль, без карты.",
+      "category": "bank_lk",
+      "price": 7500,
+      "currency": "₽",
+      "image": "/shop/alfa.webp",
+      "bankName": "Альфа-Банк",
+      "deliveryType": "bank_lk",
+      "enabled": true
+    },
+    {
+      "id": 12,
+      "title": "Аккаунт Госуслуги",
+      "description": "Вход в личный кабинет Госуслуг (УЗ-1). Логин, пароль и СНИЛС.",
+      "category": "services",
+      "price": 4500,
+      "currency": "₽",
+      "image": "/shop/gosuslugi.png",
+      "serviceName": "Госуслуги",
+      "deliveryType": "account",
+      "enabled": true
+    }
+  ],
+  "shopOrders": []
 }

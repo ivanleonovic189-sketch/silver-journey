@@ -12,7 +12,6 @@ const STATUS_LABELS = {
 export default function History({ payoutRequests, transactions = [], getAuthHeaders, onTabChange, user }) {
   const [filter, setFilter] = useState('all'); // all, payouts, withdrawals, deposits
   const [allRequests, setAllRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -27,8 +26,6 @@ export default function History({ payoutRequests, transactions = [], getAuthHead
         }
       } catch (err) {
         console.error(err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchAll();
@@ -48,7 +45,7 @@ export default function History({ payoutRequests, transactions = [], getAuthHead
   );
 
   const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return 'нет';
     const d = new Date(dateStr);
     return d.toLocaleString('ru', {
       day: '2-digit',
@@ -95,6 +92,13 @@ export default function History({ payoutRequests, transactions = [], getAuthHead
     fontWeight: active ? 600 : 400,
   });
 
+  const emptyLabel =
+    filter === 'payouts'
+      ? 'Нет выплат'
+      : filter === 'deposits'
+        ? 'Нет пополнений'
+        : 'Нет записей';
+
   return (
     <div className="ep-page" style={{ maxWidth: '1200px' }}>
       <h2 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text)', marginBottom: '1.5rem' }}>
@@ -114,20 +118,22 @@ export default function History({ payoutRequests, transactions = [], getAuthHead
         </button>
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Загрузка...</div>
-      ) : filteredItems.length === 0 ? (
+      {filteredItems.length === 0 ? (
         <div
           style={{
             background: 'var(--bg-card)',
             borderRadius: '16px',
-            padding: '3rem',
+            minHeight: '18rem',
+            padding: '9rem 2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             textAlign: 'center',
             color: 'var(--text-muted)',
             border: '1px solid var(--border-light)',
           }}
         >
-          <div style={{ fontSize: '1rem' }}>Нет пополнений</div>
+          <div style={{ fontSize: '1rem' }}>{emptyLabel}</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -169,7 +175,7 @@ export default function History({ payoutRequests, transactions = [], getAuthHead
                       </span>
                     </div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                      {req.bank || '—'} • {PAYMENT_LABELS[req.paymentMethod] || req.paymentMethod}
+                      {req.bank || 'нет'} {PAYMENT_LABELS[req.paymentMethod] || req.paymentMethod}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
                       {formatDate(item.date)}
@@ -218,7 +224,7 @@ export default function History({ payoutRequests, transactions = [], getAuthHead
                       {tx.type === 'merchant_deposit' ? 'Пополнение' : 'Депозит'} #{tx.id}
                     </div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                      {formatDate(item.date)} • {tx.paymentMethod || '—'}
+                      {formatDate(item.date)} {tx.paymentMethod || 'нет'}
                     </div>
                   </div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--green-bright)' }}>

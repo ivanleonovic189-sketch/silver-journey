@@ -41,7 +41,6 @@ const norm = (s) => (s || '').replace(/\s/g, '').replace(/\D/g, '');
 
 export default function Devices({ stats, payoutRequests = [], getAuthHeaders, onTabChange, onDeviceAdded }) {
   const [devices, setDevices] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editDeviceId, setEditDeviceId] = useState(null);
   const [form, setForm] = useState({ type: 'card_ru', requisites: '', bank: '', limitRange: '', maxTurnoverPerDay: '', maxTurnoverTotal: '' });
@@ -63,8 +62,6 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
       if (res.ok) setDevices(await res.json());
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -204,59 +201,45 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
     : RUSSIAN_BANKS;
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+    <div>
       <h2 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text)', marginBottom: '1.5rem' }}>
         Устройства
       </h2>
-      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-        Добавляйте реквизиты карты или СБП для приёма выплат. Лимиты зависят от страхового депозита.
-      </p>
 
-      {!hasInsuranceDeposit && (
-        <div style={{
-          background: 'rgba(220, 38, 38, 0.1)',
-          border: '1px solid var(--error)',
-          borderRadius: '12px',
-          padding: '1rem 1.25rem',
-          color: 'var(--error)',
+      <button
+        type="button"
+        onClick={openModal}
+        disabled={!hasInsuranceDeposit}
+        style={{
+          width: '100%',
+          padding: '0.875rem 1.5rem',
           marginBottom: '1.5rem',
-          fontSize: '0.9rem',
-        }}>
-          Для добавления устройств требуется страховой депозит от 5 000 ₽. Текущий: {insuranceDeposit.toLocaleString()} ₽
-        </div>
-      )}
+          background: hasInsuranceDeposit ? 'var(--accent)' : 'var(--bg-card-hover)',
+          color: hasInsuranceDeposit ? '#fff' : 'var(--text-muted)',
+          border: 'none',
+          borderRadius: '10px',
+          fontWeight: 600,
+          cursor: hasInsuranceDeposit ? 'pointer' : 'not-allowed',
+          fontSize: '0.95rem',
+        }}
+      >
+        + Добавить
+      </button>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <button
-          onClick={openModal}
-          disabled={!hasInsuranceDeposit}
-          style={{
-            padding: '0.75rem 1.5rem',
-            background: hasInsuranceDeposit ? 'var(--accent)' : 'var(--bg-card-hover)',
-            color: hasInsuranceDeposit ? '#fff' : 'var(--text-muted)',
-            border: 'none',
-            borderRadius: '10px',
-            fontWeight: 600,
-            cursor: hasInsuranceDeposit ? 'pointer' : 'not-allowed',
-            fontSize: '0.95rem',
-          }}
-        >
-          + Добавить
-        </button>
-      </div>
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Загрузка...</div>
-      ) : devices.length === 0 ? (
+      {devices.length === 0 ? (
         <div style={{
           background: 'var(--bg-card)',
           borderRadius: '16px',
-          padding: '3rem',
+          minHeight: '16rem',
+          padding: '8rem 2rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           textAlign: 'center',
           color: 'var(--text-muted)',
           border: '1px solid var(--border-light)',
         }}>
-          Нет устройств. Добавьте карту или СБП для приёма выплат.
+          <div style={{ fontSize: '1.1rem', fontWeight: 500 }}>Нет устройств</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -300,7 +283,7 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     Банк: {d.bank}
                     <span style={{ marginLeft: '0.5rem', fontWeight: 500, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                      — Лимит: {LIMIT_TIERS.find(t => t.value === d.limitRange)?.range || d.limitRange}
+                      Лимит: {LIMIT_TIERS.find(t => t.value === d.limitRange)?.range || d.limitRange}
                     </span>
                   </span>
                 )}
@@ -497,7 +480,7 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
             {modalStep === 1 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div style={{ fontSize: '0.95rem', color: 'var(--text)' }}>
-                  Вы выбрали основным банк <strong>{form.bank || '—'}</strong> для платежей при переводе
+                  Вы выбрали основным банк <strong>{form.bank || 'нет'}</strong> для платежей при переводе
                 </div>
                 {error && <div style={{ color: 'var(--error)', fontSize: '0.85rem' }}>{error}</div>}
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
@@ -521,7 +504,7 @@ export default function Devices({ stats, payoutRequests = [], getAuthHeaders, on
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Максимальный оборот за всё время (₽)</label>
+                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Максимальный оборот за все время (₽)</label>
                   <input
                     type="text"
                     inputMode="numeric"

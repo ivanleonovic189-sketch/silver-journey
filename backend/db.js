@@ -33,6 +33,7 @@ const defaultData = {
   payoutRequests: [],
   shopProducts: [],
   shopOrders: [],
+  shopAppeals: [],
   config: { name: 'Enter Pay', currency: '₽' },
 };
 
