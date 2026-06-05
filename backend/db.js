@@ -68,17 +68,29 @@ async function initDbAsync() {
   if (!isServerless) return initDb();
   if (memoryCache) return memoryCache;
 
+  const seed = readSeedDb();
+
   try {
     const blob = await loadFromBlob();
-    if (blob) {
+    if (blob && Array.isArray(blob.users) && blob.users.length > 0) {
       memoryCache = blob;
+      return memoryCache;
+    }
+    if (blob) {
+      memoryCache = {
+        ...seed,
+        ...blob,
+        users: [...(seed.users || []), ...(blob.users || [])].filter(
+          (u, i, arr) => arr.findIndex((x) => x.email === u.email) === i
+        ),
+      };
       return memoryCache;
     }
   } catch (err) {
     console.error('Blob load failed:', err);
   }
 
-  memoryCache = readSeedDb();
+  memoryCache = seed;
   try {
     await saveToBlob(memoryCache);
   } catch (err) {
@@ -116,7 +128,11 @@ async function saveDbAsync(data) {
   fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
 
   if (isServerless) {
-    await saveToBlob(data);
+    try {
+      await saveToBlob(data);
+    } catch (err) {
+      console.error('Blob save failed (non-fatal):', err);
+    }
   }
 }
 

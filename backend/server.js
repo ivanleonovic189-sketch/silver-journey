@@ -100,6 +100,7 @@ function requireAuth(req, res, next) {
 
 // Регистрация
 app.post('/api/auth/register', async (req, res) => {
+  try {
   const db = getDb();
   const { email, password, name, telegram, role, referralCode } = req.body || {};
   
@@ -113,8 +114,8 @@ app.post('/api/auth/register', async (req, res) => {
   
   if (!Array.isArray(db.users)) db.users = [];
   
-  // Проверка существующего пользователя
-  if (db.users.find(u => u.email === email)) {
+  const emailNorm = String(email).toLowerCase().trim();
+  if (db.users.find(u => u.email === emailNorm)) {
     return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
   }
 
@@ -126,7 +127,7 @@ app.post('/api/auth/register', async (req, res) => {
   
   const user = {
     id: nextId(db.users),
-    email: String(email).toLowerCase().trim(),
+    email: emailNorm,
     password: crypto.createHash('sha256').update(String(password)).digest('hex'),
     name: String(name),
     telegram: String(telegram).trim(),
@@ -154,15 +155,20 @@ app.post('/api/auth/register', async (req, res) => {
     }
   }
   
-  await saveDbAsync(db);
+  saveDb(db);
 
   const { password: _, ...userPublic } = user;
   const token = createAuthToken(userPublic);
   res.status(201).json({ user: userPublic, token });
+  } catch (err) {
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'Ошибка регистрации' });
+  }
 });
 
 // Логин
 app.post('/api/auth/login', async (req, res) => {
+  try {
   const db = getDb();
   const { email, password } = req.body || {};
   
@@ -171,7 +177,8 @@ app.post('/api/auth/login', async (req, res) => {
   }
   
   if (!Array.isArray(db.users)) db.users = [];
-  const user = db.users.find(u => u.email === String(email).toLowerCase().trim());
+  const emailNorm = String(email).toLowerCase().trim();
+  const user = db.users.find(u => u.email === emailNorm);
   
   if (!user) {
     return res.status(401).json({ error: 'Неверный email или пароль' });
@@ -185,6 +192,10 @@ app.post('/api/auth/login', async (req, res) => {
   const { password: _, ...userPublic } = user;
   const token = createAuthToken(userPublic);
   res.json({ user: userPublic, token });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Ошибка входа' });
+  }
 });
 
 // Получить текущего пользователя
