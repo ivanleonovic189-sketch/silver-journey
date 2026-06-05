@@ -1057,7 +1057,7 @@ app.get('/api/stats', requireAuth, (req, res) => {
 
 // ========== МАГАЗИН (P2P для питупишеров) ==========
 
-const SHOP_CATALOG_VERSION = 7;
+const SHOP_CATALOG_VERSION = 8;
 
 function getShopCatalog() {
   return [
@@ -1124,9 +1124,9 @@ function getShopCatalog() {
     {
       id: 12,
       title: 'Аккаунт Госуслуги',
-      description: 'Подтверждённый аккаунт Госуслуг (УЗ-1). Логин, пароль и СНИЛС для верификаций.',
+      description: 'Вход в личный кабинет Госуслуг (УЗ-1). Логин, пароль и СНИЛС.',
       category: 'services',
-      price: 18500,
+      price: 4500,
       currency: '₽',
       image: '/shop/gosuslugi.png',
       serviceName: 'Госуслуги',
