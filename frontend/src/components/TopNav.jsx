@@ -7,6 +7,7 @@ import {
   ThemeIcon,
   UserAvatarIcon,
 } from './Icons';
+import EnterPayLogo from './EnterPayLogo';
 
 export default function TopNav({ activeTab, onTabChange, onLogout, user, balance, onWalletClick, onRefClick, theme, onThemeToggle, merchantDevices = [] }) {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -41,26 +42,7 @@ export default function TopNav({ activeTab, onTabChange, onLogout, user, balance
             onClick={() => onTabChange('dashboard')}
             aria-label="На главную"
           >
-            <div
-              style={{
-                width: '26px',
-                height: '26px',
-                borderRadius: '7px',
-                background: 'var(--accent)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontSize: '0.95rem',
-                fontWeight: 800,
-                letterSpacing: '-0.04em',
-              }}
-            >
-              E
-            </div>
-            <div className="ep-topnav__brand-text">
-              Enter <span style={{ color: 'var(--accent)' }}>Pay</span>
-            </div>
+            <EnterPayLogo size="sm" className="ep-topnav__brand-text" />
           </button>
           <span
             className="ep-topnav__badge ep-no-copy"

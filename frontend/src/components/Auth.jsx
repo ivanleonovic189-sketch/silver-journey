@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { API } from '../api';
 import TelegramIcon from './TelegramIcon';
+import EnterPayLogo from './EnterPayLogo';
 
 
 export default function Auth({ onLogin, referralCode: initialReferralCode }) {
@@ -11,6 +12,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
     password: '',
     name: '',
     telegram: '',
+    role: 'merchant',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +31,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
             password: formData.password,
             name: formData.name,
             telegram: formData.telegram,
-            role: 'merchant',
+            role: formData.role,
             ...(referralCode && { referralCode }),
           };
 
@@ -59,27 +61,8 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
     <div className="ep-auth-page">
       <div className="ep-auth-card">
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.75rem' }}>
-            <div
-              style={{
-                width: '34px',
-                height: '34px',
-                borderRadius: '9px',
-                background: 'var(--accent)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontSize: '1.2rem',
-                fontWeight: 800,
-                letterSpacing: '-0.04em',
-              }}
-            >
-              E
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>
-              Enter <span style={{ color: 'var(--accent)' }}>Pay</span>
-            </div>
+          <div style={{ display: 'inline-flex', marginBottom: '1.75rem' }}>
+            <EnterPayLogo size="md" />
           </div>
           <h1
             style={{
@@ -270,6 +253,58 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
                     e.target.style.background = 'var(--bg-card-hover)';
                   }}
                 />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    color: 'var(--text-muted)',
+                    marginBottom: '0.5rem',
+                    fontWeight: 500,
+                  }}
+                >
+                  Роль
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '0.75rem',
+                  }}
+                >
+                  {[
+                    { value: 'merchant', label: 'Мерчант' },
+                    { value: 'shop', label: 'Магазин', disabled: true },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      disabled={option.disabled}
+                      onClick={() => {
+                        if (!option.disabled) {
+                          setFormData({ ...formData, role: option.value });
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '0.875rem 1rem',
+                        background: formData.role === option.value ? 'var(--bg-card)' : 'var(--bg-card-hover)',
+                        border: formData.role === option.value ? '1px solid var(--accent)' : '1px solid var(--border-light)',
+                        borderRadius: '8px',
+                        color: option.disabled ? 'var(--text-light)' : formData.role === option.value ? 'var(--text)' : 'var(--text-muted)',
+                        fontWeight: formData.role === option.value ? 600 : 400,
+                        cursor: option.disabled ? 'not-allowed' : 'pointer',
+                        fontSize: '0.95rem',
+                        transition: 'all 0.15s',
+                        boxShadow: formData.role === option.value ? '0 1px 3px rgba(0, 0, 0, 0.05)' : 'none',
+                        opacity: option.disabled ? 0.55 : 1,
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </>
           )}
