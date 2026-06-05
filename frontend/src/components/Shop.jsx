@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { API } from '../api';
 import EnterShopLogo from './EnterShopLogo';
 
@@ -128,13 +128,17 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
   const [successOrder, setSuccessOrder] = useState(null);
 
   const balance = stats?.balance ?? 0;
+  const initialLoadDone = useRef(false);
+  const getAuthHeadersRef = useRef(getAuthHeaders);
+  getAuthHeadersRef.current = getAuthHeaders;
 
-  const load = useCallback(async () => {
-    if (!getAuthHeaders) return;
-    setLoading(true);
+  const load = useCallback(async ({ showLoader = false } = {}) => {
+    const auth = getAuthHeadersRef.current;
+    if (!auth) return;
+    if (showLoader || !initialLoadDone.current) setLoading(true);
     setError('');
     try {
-      const headers = getAuthHeaders();
+      const headers = auth();
       const catParam = category === 'all' ? '' : `?category=${category}`;
       const [infoRes, prodRes, ordRes] = await Promise.all([
         fetch(`${API}/api/shop/info`, { headers }),
@@ -144,16 +148,17 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
       if (infoRes.ok) setInfo(await infoRes.json());
       if (prodRes.ok) setProducts(await prodRes.json());
       if (ordRes.ok) setOrders(await ordRes.json());
+      initialLoadDone.current = true;
     } catch {
       setError('Не удалось загрузить магазин');
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeaders, category]);
+  }, [category]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    load({ showLoader: true });
+  }, [category, load]);
 
   const handleBuy = async () => {
     if (!selected || !getAuthHeaders) return;
@@ -282,15 +287,10 @@ export default function Shop({ getAuthHeaders, stats, onPurchaseComplete }) {
                       <img src={p.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     </div>
                   )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                  <div>
                     <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       {CATEGORY_LABELS[p.category] || p.category}
                     </span>
-                    {p.badge && (
-                      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)', padding: '0.15rem 0.45rem', borderRadius: '6px' }}>
-                        {p.badge}
-                      </span>
-                    )}
                   </div>
                   <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text)', lineHeight: 1.35 }}>{p.title}</h3>
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5, flex: 1 }}>{p.description}</p>
