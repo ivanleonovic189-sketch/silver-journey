@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import TelegramIcon from './TelegramIcon';
-import { LockIcon, PlusIcon } from './Icons';
+import { LockIcon } from './Icons';
 
 const TYPE_LABELS = { card_ru: 'Банковская карта', sbp: 'СБП' };
 
@@ -95,6 +95,58 @@ export default function Dashboard({
     sessionStorage.setItem('openDevicesAddModal', '1');
     onTabChange?.('devices');
   };
+
+  const addDeviceLockHint = 'Вам необходимо выполнить одно пополнение для разблокировки';
+
+  const renderAddDeviceButton = (compact = false) => (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => { if (hasDeposit) openDevicesAdd(); }}
+      onKeyDown={(e) => { if (hasDeposit && e.key === 'Enter') openDevicesAdd(); }}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: compact ? '0.6rem' : '1rem',
+        width: '100%',
+        background: 'var(--bg-card-hover)',
+        border: compact ? '1px dashed var(--border-light)' : '1px solid var(--border-light)',
+        borderRadius: compact ? '8px' : '10px',
+        color: 'var(--text)',
+        fontSize: compact ? '0.8rem' : '0.875rem',
+        fontWeight: 600,
+        cursor: hasDeposit ? 'pointer' : 'default',
+        filter: hasDeposit ? 'none' : 'blur(2px)',
+        opacity: hasDeposit ? 1 : 0.6,
+        transition: 'opacity 0.2s',
+      }}
+      onMouseEnter={(e) => {
+        if (hasDeposit) {
+          e.currentTarget.style.borderColor = 'var(--border)';
+          e.currentTarget.style.opacity = '0.85';
+        } else {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setLockTooltip({ text: addDeviceLockHint, x: rect.left + rect.width / 2, y: rect.top });
+        }
+      }}
+      onMouseMove={(e) => {
+        if (!hasDeposit && lockTooltip) {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setLockTooltip((prev) => (prev ? { ...prev, x: rect.left + rect.width / 2, y: rect.top } : null));
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (hasDeposit) {
+          e.currentTarget.style.borderColor = compact ? 'var(--border-light)' : 'var(--border-light)';
+          e.currentTarget.style.opacity = '1';
+        }
+        setLockTooltip(null);
+      }}
+    >
+      Добавить
+    </div>
+  );
 
   const maxAmount = Math.max(...chartData.map((d) => d.amount), 1);
   const maxEarned = Math.max(...chartData.map((d) => d.earned || 0), 1);
@@ -688,57 +740,10 @@ export default function Dashboard({
                     </div>
                     </div>
                   );})}
-                  {merchantDevices.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={openDevicesAdd}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.5rem',
-                        padding: '0.6rem',
-                        width: '100%',
-                        background: 'transparent',
-                        border: '1px dashed var(--border-light)',
-                        borderRadius: '8px',
-                        color: 'var(--text-muted)',
-                        fontSize: '0.8rem',
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <PlusIcon size={14} color="var(--text-muted)" />
-                      Добавить
-                    </button>
-                  )}
+                  {merchantDevices.length > 0 && renderAddDeviceButton(true)}
                 </>
               ) : (
-                <button
-                  type="button"
-                  onClick={openDevicesAdd}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    padding: '1rem',
-                    width: '100%',
-                    background: 'var(--bg-card-hover)',
-                    border: '1px solid var(--border-light)',
-                    borderRadius: '10px',
-                    color: 'var(--text)',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; }}
-                >
-                  <PlusIcon size={18} color="var(--accent)" />
-                  <span>Добавить</span>
-                </button>
+                renderAddDeviceButton(false)
               )}
             </div>
           </div>
