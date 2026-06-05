@@ -1,7 +1,12 @@
 export default function Loader({ user }) {
+  const blockCopy = (e) => e.preventDefault();
+
   return (
     <div
-      className="ep-loader"
+      className="ep-loader ep-no-copy"
+      onCopy={blockCopy}
+      onCut={blockCopy}
+      onContextMenu={blockCopy}
       style={{
         position: 'fixed',
         inset: 0,
