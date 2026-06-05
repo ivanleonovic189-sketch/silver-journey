@@ -17,20 +17,47 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const blockCopy = (e) => e.preventDefault();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    const email = formData.email.trim();
+    const password = formData.password;
+    const name = formData.name.trim();
+    const telegram = formData.telegram.trim();
+
+    if (!email) {
+      setError('Укажите email');
+      return;
+    }
+    if (!password) {
+      setError('Укажите пароль');
+      return;
+    }
+    if (!isLogin) {
+      if (!name) {
+        setError('Укажите ник');
+        return;
+      }
+      if (!telegram) {
+        setError('Укажите Telegram');
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
       const body = isLogin
-        ? { email: formData.email, password: formData.password }
+        ? { email, password }
         : {
-            email: formData.email,
-            password: formData.password,
-            name: formData.name,
-            telegram: formData.telegram,
+            email,
+            password,
+            name,
+            telegram,
             role: formData.role,
             ...(referralCode && { referralCode }),
           };
@@ -61,7 +88,13 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
     <div className="ep-auth-page">
       <div className="ep-auth-card">
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ display: 'inline-flex', marginBottom: '1.75rem' }}>
+          <div
+            className="ep-no-copy"
+            onCopy={blockCopy}
+            onCut={blockCopy}
+            onContextMenu={blockCopy}
+            style={{ display: 'inline-flex', marginBottom: '1.75rem' }}
+          >
             <EnterPayLogo size="md" />
           </div>
           <h1
@@ -162,6 +195,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
 
         <form
           onSubmit={handleSubmit}
+          noValidate
           autoComplete="off"
           data-lpignore="true"
           data-1p-ignore
@@ -186,7 +220,14 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
                 </label>
                 <input
                   type="text"
-                  required
+                  name="enterpay_nick"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore
+                  readOnly
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   style={{
@@ -202,6 +243,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
                   }}
                   placeholder="Ваш ник"
                   onFocus={(e) => {
+                    e.target.removeAttribute('readonly');
                     e.target.style.borderColor = 'var(--accent)';
                     e.target.style.background = 'var(--bg-card)';
                   }}
@@ -229,7 +271,14 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
                 </label>
                 <input
                   type="text"
-                  required
+                  name="enterpay_telegram"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore
+                  readOnly
                   value={formData.telegram}
                   onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
                   style={{
@@ -245,6 +294,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
                   }}
                   placeholder="@username"
                   onFocus={(e) => {
+                    e.target.removeAttribute('readonly');
                     e.target.style.borderColor = 'var(--accent)';
                     e.target.style.background = 'var(--bg-card)';
                   }}
@@ -323,7 +373,6 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
             </label>
             <input
               type="email"
-              required
               name="enterpay_email"
               autoComplete="off"
               autoCorrect="off"
@@ -331,6 +380,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
               spellCheck={false}
               data-lpignore="true"
               data-1p-ignore
+              readOnly
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               style={{
@@ -346,6 +396,7 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
               }}
               placeholder="your@email.com"
               onFocus={(e) => {
+                e.target.removeAttribute('readonly');
                 e.target.style.borderColor = 'var(--accent)';
                 e.target.style.background = 'var(--bg-card)';
               }}
@@ -370,7 +421,6 @@ export default function Auth({ onLogin, referralCode: initialReferralCode }) {
             </label>
             <input
               type="password"
-              required
               name="enterpay_secret"
               autoComplete="one-time-code"
               autoCorrect="off"
