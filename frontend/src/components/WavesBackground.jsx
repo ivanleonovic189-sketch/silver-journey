@@ -12,6 +12,11 @@ export default function WavesBackground() {
   return (
     <div id="ep-waves-mount" aria-hidden="true">
       <div className="ep-waves ep-waves--minimal">
+        <div className="ep-waves__color" aria-hidden="true">
+          <span className="ep-waves__blob ep-waves__blob--blue" />
+          <span className="ep-waves__blob ep-waves__blob--green" />
+          <span className="ep-waves__blob ep-waves__blob--teal" />
+        </div>
         <div className="ep-waves__ambient" />
         <svg className="ep-waves__layer ep-waves__layer--1" viewBox="0 0 2880 240" preserveAspectRatio="none">
           <path d={WAVE_PATH} />
