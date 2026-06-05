@@ -170,12 +170,16 @@ function findDbUser(db, userId) {
   return (db.users || []).find((us) => String(us.id) === String(userId));
 }
 
+// TEMPORARY: set SHOP_VERIFICATION_ENABLED=true to require shop confirmation again
+const SHOP_VERIFICATION_ENABLED = process.env.SHOP_VERIFICATION_ENABLED === 'true';
+
 function generateVerificationCode() {
   return `EP-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 }
 
 function isShopVerified(user) {
   if (!user || user.role !== 'shop') return true;
+  if (!SHOP_VERIFICATION_ENABLED) return true;
   return user.verified === true;
 }
 
@@ -281,8 +285,8 @@ app.post('/api/auth/register', async (req, res) => {
     referralCode: role === 'merchant' ? assignReferralCode(db, name, null) : null,
     referrerId: referrerId,
     createdAt: new Date().toISOString(),
-    verified: role === 'shop' ? false : true,
-    verificationCode: role === 'shop' ? generateVerificationCode() : null,
+    verified: role === 'shop' ? (SHOP_VERIFICATION_ENABLED ? false : true) : true,
+    verificationCode: role === 'shop' && SHOP_VERIFICATION_ENABLED ? generateVerificationCode() : null,
   };
   
   db.users.push(user);
@@ -306,7 +310,7 @@ app.post('/api/auth/register', async (req, res) => {
   await saveDbAsync(db);
 
   const { password: _, ...userPublic } = user;
-  if (role === 'shop') {
+  if (role === 'shop' && SHOP_VERIFICATION_ENABLED) {
     userPublic.verified = false;
     userPublic.verificationCode = user.verificationCode;
   }

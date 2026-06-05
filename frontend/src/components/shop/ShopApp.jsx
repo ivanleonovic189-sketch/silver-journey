@@ -14,6 +14,9 @@ import ShopSetup from './ShopSetup';
 
 const SHOP_TABS = ['overview', 'withdrawals', 'deposits', 'appeals', 'api', 'settings'];
 
+// TEMPORARY: set VITE_SHOP_VERIFICATION_ENABLED=true to show verification gate again
+const SHOP_VERIFICATION_ENABLED = import.meta.env.VITE_SHOP_VERIFICATION_ENABLED === 'true';
+
 export default function ShopApp({ user, token, onLogout, theme, onThemeToggle, onUserUpdate }) {
   const [activeTab, setActiveTabState] = useState(() => {
     const hash = window.location.hash.slice(1);
@@ -26,7 +29,9 @@ export default function ShopApp({ user, token, onLogout, theme, onThemeToggle, o
   const [loading, setLoading] = useState(true);
   const [shopConfigured, setShopConfigured] = useState(false);
   const [verified, setVerified] = useState(() =>
-    user?.role === 'shop' ? user?.verified === true : true
+    user?.role === 'shop'
+      ? SHOP_VERIFICATION_ENABLED ? user?.verified === true : true
+      : true
   );
   const [verificationCode, setVerificationCode] = useState(() =>
     user?.role === 'shop' && user?.verified !== true ? user?.verificationCode || '' : ''
@@ -34,8 +39,8 @@ export default function ShopApp({ user, token, onLogout, theme, onThemeToggle, o
 
   useEffect(() => {
     if (user?.role !== 'shop') return;
-    setVerified(user.verified === true);
-    if (user.verified !== true && user.verificationCode) {
+    setVerified(SHOP_VERIFICATION_ENABLED ? user.verified === true : true);
+    if (SHOP_VERIFICATION_ENABLED && user.verified !== true && user.verificationCode) {
       setVerificationCode(user.verificationCode);
     }
   }, [user?.verified, user?.verificationCode, user?.role]);
@@ -96,7 +101,9 @@ export default function ShopApp({ user, token, onLogout, theme, onThemeToggle, o
       }
       const isVerified =
         data.user?.role === 'shop'
-          ? data.verification?.verified === true || data.user?.verified === true
+          ? SHOP_VERIFICATION_ENABLED
+            ? data.verification?.verified === true || data.user?.verified === true
+            : true
           : true;
       setVerified(isVerified);
       if (data.verification?.code) {
@@ -204,8 +211,8 @@ export default function ShopApp({ user, token, onLogout, theme, onThemeToggle, o
     );
   }
 
-  const showVerificationGate = !verified;
-  const showSetup = verified && !shopConfigured;
+  const showVerificationGate = SHOP_VERIFICATION_ENABLED && !verified;
+  const showSetup = (SHOP_VERIFICATION_ENABLED ? verified : true) && !shopConfigured;
 
   if (showSetup) {
     return (

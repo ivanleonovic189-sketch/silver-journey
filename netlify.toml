@@ -13,6 +13,8 @@
   ADMIN_VERIFY_SECRET = "enter-pay-admin-2026"
   AUTH_SECRET = "enter-pay-prod-auth-2026-v1"
   FRONTEND_URL = "https://enterpay.netlify.app"
+  SHOP_VERIFICATION_ENABLED = "false"
+  VITE_SHOP_VERIFICATION_ENABLED = "false"
 
 [[redirects]]
   from = "/api/*"
