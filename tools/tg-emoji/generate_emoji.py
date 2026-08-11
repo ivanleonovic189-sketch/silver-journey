@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Генератор премиум-эмодзи Telegram: чёрное сердце в объятиях белых лилий.
+"""Генератор премиум-эмодзи Telegram: чёрное сердце с рисунком внутри.
 
 Две версии:
-  noir    — угольная, с мягким свечением и красным кантом;
-  cartoon — мультяшная: толстый контур, глянец, упругий пульс.
+  noir    — объёмное полированное сердце без цветов: рельефное освещение,
+            блик ходит маятником, при ударе оно раскаляется изнутри и
+            выбрасывает искры;
+  cartoon — мультяшная: толстый контур, упругий пульс, венок из белых лилий.
 
 Итог — 100x100, VP9 + альфа, 3 с, 30 fps, до 64 КБ (требования Telegram
 к анимированным кастом-эмодзи, бот @Stickers).
@@ -37,25 +39,30 @@ DURATION = 3.0
 FRAMES = int(FPS * DURATION)
 MAX_BYTES = 62 * 1024      # лимит Telegram 64 КБ, держим запас
 
-HEART_RATIO = 0.74          # сердце меньше холста — вокруг него венок
-HEART_Y = -0.075            # и чуть выше центра
-HEART_RX = HEART_RATIO / 2
-HEART_RY = HEART_RATIO / 2 * 0.90
-
 STYLES = {
+    # Угольная: объёмное сердце с рельефным освещением, без венка.
     "noir": dict(
+        ratio=0.80, y=-0.02, wreath=False, shading=True,
         fill_top=(38, 38, 50), fill_bot=(7, 7, 11),
         rim=(214, 30, 52), rim_gain=0.55, outline=None,
-        ash=(206, 208, 218), eye=(255, 66, 48),
-        beat=0.085, squash=0.35, gloss=0.5, shine=0.20, blink=False, sparkle="ember",
+        ash=(178, 182, 198), eye=(255, 66, 48),
+        beat=0.075, squash=0.5, gloss=0.0, shine=0.0, blink=False, sparkle="ember",
     ),
+    # Мультяшная: плоская заливка, толстый контур, венок из лилий.
     "cartoon": dict(
+        ratio=0.74, y=-0.075, wreath=True, shading=False,
         fill_top=(58, 46, 74), fill_bot=(14, 10, 22),
         rim=(255, 86, 124), rim_gain=0.95, outline=(248, 244, 255),
         ash=(226, 228, 244), eye=(255, 92, 74),
         beat=0.125, squash=1.0, gloss=1.1, shine=0.09, blink=True, sparkle="star",
     ),
 }
+
+# Материал угольного сердца: чёрный полированный камень.
+ALBEDO = (11, 11, 16)
+LIGHT = (54, 56, 74)        # рассеянный свет
+SPEC = (255, 246, 250)      # цвет блика
+SSS = (214, 26, 48)         # свечение изнутри
 
 
 # --------------------------------------------------------------------------- #
@@ -186,10 +193,57 @@ def blink_factor(t):
 # --------------------------------------------------------------------------- #
 # Сборка слоёв
 # --------------------------------------------------------------------------- #
+def build_normals(mask):
+    """Маска → карта высот купола и нормали. Отсюда берётся весь объём."""
+    m = np.asarray(mask, np.float32) / 255.0
+    h = np.asarray(mask.filter(ImageFilter.GaussianBlur(W * 0.060)), np.float32) / 255.0
+    h = np.clip(h, 0, 1) ** 0.62 * m
+    gy, gx = np.gradient(h)
+    k = W * 0.135
+    nx, ny, nz = -gx * k, -gy * k, np.ones_like(h)
+    ln = np.sqrt(nx * nx + ny * ny + nz * nz)
+    return h, nx / ln, ny / ln, nz / ln
+
+
+def shade_heart(L, ang, beat, tilt):
+    """Ламберт + блик Блинна-Фонга + Френель по краю + свечение изнутри."""
+    nx, ny, nz = L["nx"], L["ny"], L["nz"]
+    lx, ly, lz = math.cos(ang) * 0.62, math.sin(ang) * 0.30 - 0.46, 0.70
+    ln = math.sqrt(lx * lx + ly * ly + lz * lz)
+    lx, ly, lz = lx / ln, ly / ln, lz / ln
+    hx, hy, hz = lx, ly, lz + 1.0
+    hn = math.sqrt(hx * hx + hy * hy + hz * hz)
+    hx, hy, hz = hx / hn, hy / hn, hz / hn
+
+    ndl = np.clip(nx * lx + ny * ly + nz * lz, 0, 1)
+    ndh = np.clip(nx * hx + ny * hy + nz * hz, 0, 1)
+    fres = np.clip(1.0 - nz, 0, 1) ** 2.2
+
+    rgb = np.zeros((W, W, 3), np.float32)
+    for c in range(3):
+        rgb[:, :, c] = (
+            ALBEDO[c]
+            + LIGHT[c] * (0.06 + 0.94 * ndl ** 1.5) * (0.45 + 0.55 * L["h"])
+            + SPEC[c] * (ndh ** 72) * 1.15                 # горячая точка блика
+            + SPEC[c] * (ndh ** 16) * 0.24                 # скользящий глянец
+            + SPEC[c] * (ndh ** 5) * 0.05                  # общий отсвет
+            + SSS[c] * fres * (0.22 + 0.60 * beat)         # кант, дышащий с ударом
+            + SSS[c] * L["core"] * (0.04 + 0.42 * beat)    # жар изнутри
+        )
+    # лёгкий разворот подсветки при покачивании
+    rgb += np.array(LIGHT, np.float32) * (tilt * 0.06 * nx)[:, :, None]
+
+    rgb *= (1.0 - 0.42 * np.clip(1.0 - nz, 0, 1) ** 1.1)[:, :, None]   # закругление силуэта
+    out = np.concatenate([np.clip(rgb, 0, 255),
+                          np.asarray(L["mask"], np.float32)[:, :, None]], axis=2)
+    return Image.fromarray(out.astype(np.uint8), "RGBA")
+
+
 def build_static_layers(photo: str | None, style: str):
     S = STYLES[style]
-    mask = heart_mask(W, HEART_RATIO, y_shift=HEART_Y)
-    inner = heart_mask(W, HEART_RATIO * 0.80, y_shift=HEART_Y - 0.012)
+    ratio, HEART_Y = S["ratio"], S["y"]
+    mask = heart_mask(W, ratio, y_shift=HEART_Y)
+    inner = heart_mask(W, ratio * 0.80, y_shift=HEART_Y - 0.012)
     inner = inner.filter(ImageFilter.GaussianBlur(W * 0.030))
 
     # Тело сердца.
@@ -241,15 +295,27 @@ def build_static_layers(photo: str | None, style: str):
     art = tint(ash_f, S["ash"], 1.0)
     art_glow = tint(ash_f.filter(ImageFilter.GaussianBlur(W * 0.02)), (120, 130, 160), 0.5)
 
-    # Венок из лилий.
-    lily_back, lily_front = lilies.render(
-        W, style, heart_center=(0.5, 0.5 + HEART_Y), heart_rx=HEART_RX, heart_ry=HEART_RY)
-    bloom = Image.alpha_composite(lily_back, lily_front).split()[3]
-    bloom = bloom.filter(ImageFilter.GaussianBlur(W * 0.035)).point(lambda v: int(v * 0.55))
+    L = dict(S=S, style=style, mask=mask, body=body, edge=edge, edge_gloss=edge_gloss,
+             halo=halo, outline=outline, gloss=gloss, art=art, art_glow=art_glow,
+             eyes=eyes_f, art_mask=ash_f, ratio=ratio, hy=HEART_Y,
+             lily_back=None, lily_front=None, bloom=None)
 
-    return dict(S=S, style=style, mask=mask, body=body, edge=edge, edge_gloss=edge_gloss,
-                halo=halo, outline=outline, gloss=gloss, art=art, art_glow=art_glow,
-                eyes=eyes_f, lily_back=lily_back, lily_front=lily_front, bloom=bloom)
+    # Венок из лилий — только там, где он предусмотрен стилем.
+    if S["wreath"]:
+        back, front = lilies.render(W, style, heart_center=(0.5, 0.5 + HEART_Y),
+                                    heart_rx=ratio / 2, heart_ry=ratio / 2 * 0.90)
+        bloom = Image.alpha_composite(back, front).split()[3]
+        bloom = bloom.filter(ImageFilter.GaussianBlur(W * 0.035)).point(lambda v: int(v * 0.55))
+        L.update(lily_back=back, lily_front=front, bloom=bloom)
+
+    # Рельеф: карта нормалей и ядро для свечения изнутри.
+    if S["shading"]:
+        h, nx, ny, nz = build_normals(mask)
+        core = np.asarray(
+            heart_mask(W, ratio * 0.62, y_shift=HEART_Y).filter(
+                ImageFilter.GaussianBlur(W * 0.085)), np.float32) / 255.0
+        L.update(h=h, nx=nx, ny=ny, nz=nz, core=core * (np.asarray(mask, np.float32) / 255.0))
+    return L
 
 
 def shine_layer(mask, phase, gain=0.20):
@@ -293,6 +359,73 @@ def sparkles(t, mask, S):
     return layer
 
 
+def bursts(phase, L):
+    """Искры, вылетающие наружу на каждом ударе сердца."""
+    layer = Image.new("RGBA", (W, W), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    cx, cy = W * 0.5, W * (0.5 + L["hy"])
+    rx, ry = W * L["ratio"] * 0.46, W * L["ratio"] * 0.42
+    life = 0.44
+    for i in range(14):
+        seed = (i * 0.6180339887) % 1.0
+        spawn = (i % 2) * 0.5 + seed * 0.03
+        p = ((phase - spawn) % 1.0) / life
+        if p >= 1.0:
+            continue
+        a = math.tau * seed + (i % 2) * 0.4
+        ease = 1 - (1 - p) ** 2.2
+        reach = 0.26 + 0.30 * ((seed * 7.3) % 1.0)
+        x = cx + math.cos(a) * rx * (1 + reach * ease)
+        y = cy + math.sin(a) * ry * (1 + reach * ease) - W * 0.10 * ease * ease
+        al = int(235 * (1 - p) ** 1.6)
+        r = W * (0.0085 - 0.004 * p)
+        if r <= 0 or al <= 2:
+            continue
+        d.ellipse((x - r, y - r, x + r, y + r), fill=(255, 148, 96, al))
+        d.ellipse((x - r * 0.45, y - r * 0.45, x + r * 0.45, y + r * 0.45),
+                  fill=(255, 232, 210, min(255, al + 20)))
+    return layer.filter(ImageFilter.GaussianBlur(W * 0.0035))
+
+
+def render_noir(L, i):
+    """Объёмное сердце: свет обходит его по кругу, оно качается и бьётся."""
+    S = L["S"]
+    t = i / FPS
+    phase = t / DURATION
+    b = beat_envelope(t)
+    tilt = math.sin(phase * math.tau)              # покачивание вокруг оси
+    glow = 0.35 + 0.65 * b
+
+    # Свет ходит маятником по верхней полусфере — блик скользит, тело остаётся чёрным.
+    frame = shade_heart(L, -math.pi / 2 + tilt * 0.95, b, tilt)
+
+    # Рисунок лежит на поверхности: подчиняется свету и сдвигается при качании.
+    ndl = np.clip(L["nx"] * -0.45 + L["ny"] * -0.42 + L["nz"] * 0.79, 0, 1)
+    lit = Image.fromarray(
+        (np.asarray(L["art_mask"], np.float32) * (0.45 + 0.55 * ndl)).astype(np.uint8), "L")
+    shift = int(round(tilt * W * 0.014))
+    lit = ImageChops.offset(lit, shift, 0)
+    eyes = ImageChops.offset(L["eyes"], shift, 0)
+    frame = add(frame, tint(lit.filter(ImageFilter.GaussianBlur(W * 0.022)), (74, 80, 108), 0.38))
+    frame = Image.alpha_composite(frame, tint(lit, S["ash"], 0.80))
+
+    # Глаза разгораются на ударе.
+    frame = add(frame, tint(eyes.filter(ImageFilter.GaussianBlur(W * 0.020)), S["eye"], 1.05 * glow))
+    frame = add(frame, tint(eyes, (255, 216, 202), 0.45 + 0.55 * glow))
+
+    # Пульс со сжатием и покачивание по горизонтали.
+    amp = S["beat"] * b
+    frame = scale_xy(frame,
+                     (1 + amp * (1 + 0.20 * S["squash"])) * (1 - 0.022 * abs(tilt)),
+                     1 + amp * (1 - 0.20 * S["squash"]))
+
+    out = Image.new("RGBA", (W, W), (0, 0, 0, 0))
+    out = add(out, tint(L["halo"], S["rim"], 0.22 + 0.55 * b))
+    out = Image.alpha_composite(out, frame)
+    out = add(out, bursts(phase, L))
+    return out.resize((OUT_SIZE, OUT_SIZE), Image.LANCZOS)
+
+
 def sway(layer, deg, sx=1.0, sy=1.0):
     """Покачивание венка вокруг нижнего центра холста."""
     out = scale_xy(layer, sx, sy, anchor=1.0)
@@ -303,6 +436,8 @@ def sway(layer, deg, sx=1.0, sy=1.0):
 
 def render_frame(L, i):
     S = L["S"]
+    if S["shading"]:
+        return render_noir(L, i)
     t = i / FPS
     phase = t / DURATION
     b = beat_envelope(t)
