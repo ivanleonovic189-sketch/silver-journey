@@ -42,7 +42,7 @@ MAX_BYTES = 62 * 1024      # лимит Telegram 64 КБ, держим запа�
 STYLES = {
     # Угольная: объёмное сердце с рельефным освещением, без венка.
     "noir": dict(
-        ratio=0.80, y=-0.02, wreath=False, shading=True,
+        ratio=0.90, y=-0.008, wreath=False, shading=True,
         fill_top=(38, 38, 50), fill_bot=(7, 7, 11),
         rim=(214, 30, 52), rim_gain=0.55, outline=None,
         ash=(178, 182, 198), eye=(255, 66, 48),
@@ -374,9 +374,9 @@ def bursts(phase, L):
             continue
         a = math.tau * seed + (i % 2) * 0.4
         ease = 1 - (1 - p) ** 2.2
-        reach = 0.26 + 0.30 * ((seed * 7.3) % 1.0)
+        reach = 0.13 + 0.16 * ((seed * 7.3) % 1.0)
         x = cx + math.cos(a) * rx * (1 + reach * ease)
-        y = cy + math.sin(a) * ry * (1 + reach * ease) - W * 0.10 * ease * ease
+        y = cy + math.sin(a) * ry * (1 + reach * ease) - W * 0.055 * ease * ease
         al = int(235 * (1 - p) ** 1.6)
         r = W * (0.0085 - 0.004 * p)
         if r <= 0 or al <= 2:
