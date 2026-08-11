@@ -1,0 +1,5 @@
+out/frames_*/
+out/check_*.png
+assets/*
+!assets/.gitkeep
+__pycache__/
