@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0d0d10">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="stylesheet" href="/styles.css">
+<title>Моя музыка</title>
+</head>
+<body>
+
+<!-- Экран входа -->
+<section id="login" class="login hidden">
+  <div class="login-box">
+    <div class="logo">♫</div>
+    <h1>Моя музыка</h1>
+    <p class="muted">Вход на домашний сервер</p>
+    <form id="login-form">
+      <input id="login-password" type="password" inputmode="text" autocomplete="current-password" placeholder="Пароль приложения" required>
+      <button type="submit" class="primary">Войти</button>
+    </form>
+    <p id="login-error" class="error hidden"></p>
+  </div>
+</section>
+
+<!-- Основное приложение -->
+<div id="app" class="app hidden">
+  <header class="topbar">
+    <button id="back-btn" class="icon-btn hidden" aria-label="Назад">‹</button>
+    <h2 id="view-title">Поиск</h2>
+    <button id="settings-btn" class="icon-btn" aria-label="Настройки">⚙</button>
+  </header>
+
+  <main id="content" class="content"></main>
+
+  <!-- Мини-плеер -->
+  <div id="mini" class="mini hidden">
+    <img id="mini-cover" class="mini-cover" alt="">
+    <div class="mini-info">
+      <div id="mini-title" class="mini-title"></div>
+      <div id="mini-artist" class="mini-artist"></div>
+    </div>
+    <button id="mini-play" class="icon-btn big" aria-label="Играть">▶</button>
+    <button id="mini-next" class="icon-btn" aria-label="Дальше">⏭</button>
+    <div id="mini-progress" class="mini-progress"></div>
+  </div>
+
+  <nav class="tabbar">
+    <button class="tab active" data-view="search"><span>⌕</span>Поиск</button>
+    <button class="tab" data-view="playlists"><span>≡</span>Плейлисты</button>
+    <button class="tab" data-view="likes"><span>♥</span>Любимое</button>
+    <button class="tab" data-view="radio"><span>◉</span>Волна</button>
+  </nav>
+</div>
+
+<!-- Полноэкранный плеер -->
+<section id="player" class="player hidden">
+  <button id="player-close" class="icon-btn" aria-label="Свернуть">⌄</button>
+  <img id="player-cover" class="player-cover" alt="">
+  <div class="player-meta">
+    <div id="player-title" class="player-title"></div>
+    <div id="player-artist" class="player-artist"></div>
+  </div>
+  <div class="seek">
+    <input id="seek" type="range" min="0" max="1000" value="0" step="1">
+    <div class="seek-times"><span id="time-now">0:00</span><span id="time-total">0:00</span></div>
+  </div>
+  <div class="controls">
+    <button id="ctl-shuffle" class="icon-btn" aria-label="Перемешать">⤨</button>
+    <button id="ctl-prev" class="icon-btn big" aria-label="Назад">⏮</button>
+    <button id="ctl-play" class="icon-btn play" aria-label="Играть">▶</button>
+    <button id="ctl-next" class="icon-btn big" aria-label="Дальше">⏭</button>
+    <button id="ctl-repeat" class="icon-btn" aria-label="Повтор">↻</button>
+  </div>
+  <div id="player-source" class="muted small"></div>
+</section>
+
+<!-- Настройки -->
+<section id="settings" class="sheet hidden">
+  <div class="sheet-head">
+    <h2>Настройки</h2>
+    <button id="settings-close" class="icon-btn" aria-label="Закрыть">✕</button>
+  </div>
+  <div class="sheet-body">
+    <div class="row">
+      <div><b>Аккаунт</b><div id="set-account" class="muted small">…</div></div>
+    </div>
+    <div class="row">
+      <div><b>Качество потока</b><div class="muted small">low экономит мобильный трафик</div></div>
+      <select id="set-quality">
+        <option value="high">Высокое</option>
+        <option value="low">Низкое</option>
+      </select>
+    </div>
+    <div class="row">
+      <div><b>Кэш на сервере</b><div id="set-cache" class="muted small">…</div></div>
+      <button id="set-cache-clear" class="ghost">Очистить</button>
+    </div>
+    <div class="row">
+      <div><b>Сессия</b><div class="muted small">Выйти и забыть токен на этом телефоне</div></div>
+      <button id="set-logout" class="ghost danger">Выйти</button>
+    </div>
+  </div>
+</section>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

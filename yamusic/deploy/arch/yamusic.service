@@ -1,0 +1,27 @@
+[Unit]
+Description=Прокси Яндекс Музыки для телефона
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=yamusic
+Group=yamusic
+WorkingDirectory=/opt/yamusic
+ExecStart=/usr/bin/node /opt/yamusic/server/server.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+StateDirectory=yamusic
+ReadWritePaths=/var/lib/yamusic
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

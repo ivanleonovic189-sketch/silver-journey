@@ -1,0 +1,65 @@
+#cloud-config
+# Настройка VM с Arch Linux, в которой будет крутиться прокси Яндекс Музыки.
+# __SSH_PUBKEY__ подставляется скриптом 02-create-vm.sh.
+
+hostname: yamusic
+manage_etc_hosts: true
+
+users:
+  - name: yamusic
+    groups: [wheel]
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - __SSH_PUBKEY__
+
+package_update: true
+packages:
+  - nodejs
+  - rsync
+  - nginx
+
+write_files:
+  - path: /etc/systemd/system/yamusic.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Прокси Яндекс Музыки для телефона
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      User=yamusic
+      Group=yamusic
+      WorkingDirectory=/opt/yamusic
+      ExecStart=/usr/bin/node /opt/yamusic/server/server.js
+      Restart=always
+      RestartSec=3
+      Environment=NODE_ENV=production
+      StateDirectory=yamusic
+      # Кэш треков живёт в /var/lib/yamusic/cache
+      ReadWritePaths=/var/lib/yamusic
+      NoNewPrivileges=true
+      PrivateTmp=true
+      ProtectSystem=strict
+      ProtectHome=true
+      ProtectKernelTunables=true
+      ProtectControlGroups=true
+      RestrictSUIDSGID=true
+      LockPersonality=true
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # На случай, если модуль packages не отработал на свежем образе
+  - [ bash, -lc, "pacman -Sy --needed --noconfirm nodejs rsync || true" ]
+  - [ bash, -lc, "install -d -o yamusic -g yamusic /opt/yamusic /var/lib/yamusic/cache" ]
+  - [ systemctl, daemon-reload ]
+  # Сервис включаем, но не стартуем: код приедет скриптом 03-deploy-app.sh
+  - [ systemctl, enable, yamusic.service ]
+  - [ bash, -lc, "systemctl disable --now systemd-networkd-wait-online.service || true" ]
+
+final_message: "VM yamusic готова, аптайм $UPTIME сек. Дальше запустите 03-deploy-app.sh с хоста."

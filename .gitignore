@@ -6,3 +6,6 @@ start-log.txt
 .DS_Store
 .env
 .env.*
+
+# Кэш треков прокси Яндекс Музыки
+yamusic/.cache/
