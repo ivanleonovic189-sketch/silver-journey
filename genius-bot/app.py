@@ -16,6 +16,18 @@ os.environ.pop("PORT", None)
 
 import gradio as gr
 
+# На бесплатном тарифе HF Gradio-Spaces работают на ZeroGPU, который требует
+# наличия хотя бы одной функции @spaces.GPU. Боту GPU не нужен — функция
+# фиктивная и никогда не вызывается.
+try:
+    import spaces
+
+    @spaces.GPU
+    def _zerogpu_stub():
+        return "ok"
+except ImportError:
+    pass  # локальный запуск / обычный CPU-хостинг
+
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("app")
 
