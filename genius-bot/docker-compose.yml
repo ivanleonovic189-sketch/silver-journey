@@ -5,7 +5,3 @@ services:
     env_file: .env
     volumes:
       - ./data:/app/data
-    # Для первого входа в MTProto-сессию (телефон + код) нужен интерактивный запуск:
-    # docker compose run --rm genius-bot python bot.py
-    stdin_open: true
-    tty: true
