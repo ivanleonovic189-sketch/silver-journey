@@ -46,7 +46,7 @@ python bot.py
 
 Затем напиши боту `/start` — ты станешь владельцем, и напоминания пойдут тебе.
 
-## Деплой (Docker, любой VPS / Railway / Fly.io)
+## Деплой (Docker, любой VPS)
 
 ```bash
 cp .env.example .env   # вставь BOT_TOKEN
@@ -54,6 +54,37 @@ docker compose up -d --build
 ```
 
 Важно сохранять папку `data/` — там БД со статистикой и владельцем.
+
+## Бесплатный хостинг: Hugging Face Spaces (~10 минут)
+
+Реально бесплатный способ держать бота 24/7 без карты:
+
+1. Зарегистрируйся на [huggingface.co](https://huggingface.co).
+2. **New Space** → имя любое → SDK: **Docker** → Blank → Public или Private.
+3. Загрузи в Space все файлы этой папки (`Files` → `Upload files`):
+   `bot.py, config.py, db.py, routines.py, requirements.txt, Dockerfile`.
+4. Отредактируй `README.md` Space'а — в самом верху должна быть шапка:
+
+   ```yaml
+   ---
+   title: genius-bot
+   sdk: docker
+   app_port: 7860
+   ---
+   ```
+
+5. **Settings → Variables and secrets → New secret**: имя `BOT_TOKEN`,
+   значение — токен от BotFather. (Опционально переменные `TIMEZONE`,
+   `MORNING_HOUR`.)
+6. Space соберётся и запустится. Напиши боту `/start`.
+7. Чтобы Space не засыпал от неактивности: зарегистрируйся на
+   [uptimerobot.com](https://uptimerobot.com) (бесплатно) и добавь HTTP-монитор
+   на URL Space'а (`https://<user>-<space>.hf.space`) с проверкой раз в 5 минут.
+
+⚠️ Нюанс бесплатного Space: при пересборке/перезапуске файловая система
+обнуляется — статистика в `data/` может сброситься (владелец заново
+регистрируется одним `/start`). Для вечного хранения статистики нужен
+любой дешёвый VPS с диском.
 
 ## Настройка расписания
 

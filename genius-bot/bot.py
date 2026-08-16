@@ -202,6 +202,22 @@ def setup_scheduler() -> AsyncIOScheduler:
     return scheduler
 
 
+async def start_health_server():
+    """Мини HTTP-сервер для хостингов, которым нужен открытый порт
+    (Hugging Face Spaces, Render и т.п.). Включается, если задан PORT."""
+    port = os.getenv("PORT")
+    if not port:
+        return
+    from aiohttp import web
+
+    app = web.Application()
+    app.router.add_get("/", lambda r: web.Response(text="genius-bot is alive 🧠"))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    await web.TCPSite(runner, "0.0.0.0", int(port)).start()
+    log.info("Health server on port %s", port)
+
+
 async def main():
     os.makedirs("data", exist_ok=True)
     await db.init()
@@ -209,6 +225,7 @@ async def main():
     scheduler = setup_scheduler()
     scheduler.start()
 
+    await start_health_server()
     await dp.start_polling(bot)
 
 
