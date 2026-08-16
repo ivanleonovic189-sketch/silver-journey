@@ -60,16 +60,16 @@ docker compose up -d --build
 Реально бесплатный способ держать бота 24/7 без карты:
 
 1. Зарегистрируйся на [huggingface.co](https://huggingface.co).
-2. **New Space** → имя любое → SDK: **Docker** → Blank → Public или Private.
-3. Загрузи в Space все файлы этой папки (`Files` → `Upload files`):
-   `bot.py, config.py, db.py, routines.py, requirements.txt, Dockerfile`.
-4. Отредактируй `README.md` Space'а — в самом верху должна быть шапка:
+2. **New Space** → имя любое → SDK: **Gradio** (бесплатный) → Blank.
+3. Загрузи в Space файлы (`Files` → `Upload files`):
+   `app.py, bot.py, config.py, db.py, routines.py, requirements.txt`.
+4. Проверь `README.md` Space'а — в самом верху должна быть шапка вида:
 
    ```yaml
    ---
    title: genius-bot
-   sdk: docker
-   app_port: 7860
+   sdk: gradio
+   app_file: app.py
    ---
    ```
 

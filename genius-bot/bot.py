@@ -226,7 +226,9 @@ async def main():
     scheduler.start()
 
     await start_health_server()
-    await dp.start_polling(bot)
+    # handle_signals=False — чтобы бот мог работать в фоновом потоке
+    # (Hugging Face Spaces через app.py); в главном потоке это не мешает
+    await dp.start_polling(bot, handle_signals=False)
 
 
 if __name__ == "__main__":
