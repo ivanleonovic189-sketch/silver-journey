@@ -20,8 +20,15 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from assemble_full import (CHORUS, PLAN, VIDEOS, FONT_BOLD, FONT_REG, GOLD,
-                           expand, intro_cards)
+import importlib
+
+from assemble_full import FONT_BOLD, FONT_REG, GOLD, expand, intro_cards
+
+# план монтажа берётся из модуля PLAN_MODULE (по умолчанию — старая редакция)
+_plan = importlib.import_module(os.environ.get("PLAN_MODULE", "assemble_full"))
+CHORUS, PLAN = _plan.CHORUS, _plan.PLAN
+VIDEOS = getattr(_plan, "VIDEOS", {})
+VIDEO_ROOT = os.environ.get("VIDEO_ROOT", "")
 
 W, H = 1920, 1080
 FPS = 30
@@ -55,6 +62,16 @@ def build_shots(src, total):
         if start >= total:
             break
         kind = spec[0]
+        if kind == "clip":
+            shots.append(dict(start=start, dur=end - start, kind="clip",
+                              path=spec[1].replace("{V}", VIDEO_ROOT),
+                              seek=spec[2] if len(spec) > 2 else 0.0,
+                              block=block, line="", kb=False))
+            continue
+        if kind == "text":
+            shots.append(dict(start=start, dur=end - start, kind="text",
+                              path=spec[1], block=block, line="", kb=False))
+            continue
         if kind == "intro":
             t = start
             for card, d in zip(intro_cards(os.path.join(src, spec[1])), spec[2]):
@@ -105,6 +122,8 @@ def base_image(shot):
     """Большая подложка кадра (с запасом под движение)."""
     if shot["kind"] == "card_img":
         im = shot["img"]
+    elif shot["kind"] == "text":
+        return text_card(shot["path"])
     elif shot["kind"] == "card":
         return placeholder(shot["path"] if "path" in shot else shot["block"])
     else:
@@ -166,12 +185,96 @@ def draw_line(img, line):
     return img
 
 
+CLIP_FILTER = (
+    "split[a][b];"
+    "[a]scale=480:270:force_original_aspect_ratio=increase,crop=480:270,"
+    "gblur=sigma=12,eq=brightness=-0.10,scale=1920:1080[bg];"
+    "[b]scale=1920:1080:force_original_aspect_ratio=decrease[fg];"
+    "[bg][fg]overlay=(W-w)/2:(H-h)/2,fps=30,format=rgb24"
+)
+
+
+class ClipSource:
+    """Кадры видеопоздравления: ffmpeg отдаёт готовый 1920x1080 поток."""
+
+    FRAME = W * H * 3
+
+    def __init__(self, path, seek, start_t, ff):
+        self.path, self.seek, self.start, self.ff = path, seek, start_t, ff
+        self.proc = None
+        self.cur = None
+        self.idx = -1
+        self.base = start_t
+
+    def _open(self, at):
+        self.close()
+        off = self.seek + max(0.0, at - self.start)
+        self.base = self.start + max(0.0, at - self.start)
+        self.idx = -1
+        self.proc = subprocess.Popen(
+            [self.ff, "-v", "error", "-ss", f"{off:.3f}", "-i", self.path,
+             "-vf", CLIP_FILTER, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            bufsize=self.FRAME)
+
+    def close(self):
+        if self.proc:
+            try:
+                self.proc.stdout.close()
+                self.proc.kill()
+                self.proc.wait(timeout=5)
+            except Exception:
+                pass
+            self.proc = None
+
+    def _read(self):
+        buf = self.proc.stdout.read(self.FRAME)
+        if not buf or len(buf) < self.FRAME:
+            return None
+        return np.frombuffer(buf, np.uint8).reshape(H, W, 3)
+
+    def frame(self, t):
+        if self.proc is None:
+            self._open(t)
+        want = max(0, int(round((t - self.base) * FPS)))
+        while self.idx < want:
+            f = self._read()
+            if f is None:                      # клип кончился — пускаем сначала
+                self._open(self.start)
+                f = self._read()
+                if f is None:
+                    return self.cur if self.cur is not None else np.zeros(
+                        (H, W, 3), np.uint8)
+                want = 0
+            self.cur = f
+            self.idx += 1
+        return self.cur
+
+
+def text_card(lines):
+    """Титры на чёрном: список строк золотом по центру."""
+    img = Image.new("RGB", (BW, BH), (0, 0, 0))
+    d = ImageDraw.Draw(img)
+    f = ImageFont.truetype(FONT_BOLD, 72)
+    step = 104
+    y0 = BH / 2 - step * (len(lines) - 1) / 2
+    for i, t in enumerate(lines):
+        if not t:
+            continue
+        b = d.textbbox((0, 0), t, font=f)
+        d.text(((BW - (b[2] - b[0])) / 2 - b[0], y0 + i * step - (b[3] - b[1]) / 2 - b[1]),
+               t, font=f, fill=GOLD)
+    return img
+
+
 class Frames:
     """Отрисовка кадра шота на любой момент времени, с кэшем подложек."""
 
-    def __init__(self, shots):
+    def __init__(self, shots, ff=None):
         self.shots = shots
         self.cache = {}
+        self.clips = {}
+        self.ff = ff
 
     def base(self, i):
         if i not in self.cache:
@@ -182,6 +285,16 @@ class Frames:
 
     def at(self, i, t):
         s = self.shots[i]
+        if s["kind"] == "clip":
+            src = self.clips.get(i)
+            if src is None:
+                if len(self.clips) > 2:
+                    k, old = next(iter(self.clips.items()))
+                    old.close()
+                    del self.clips[k]
+                src = self.clips[i] = ClipSource(s["path"], s["seek"],
+                                                 s["start"], self.ff)
+            return src.frame(t).astype(np.float32)
         u = (t - s["start"]) / max(s["dur"], 1e-6)
         box = kb_window(s, u, i)
         img = self.base(i).resize((W, H), Image.BILINEAR, box=box)
@@ -228,7 +341,7 @@ def blend(a, b, p, kind):
 
 def render_chunk(job):
     src_shots, trans, f0, f1, path, ff = job
-    fr = Frames(src_shots)
+    fr = Frames(src_shots, ff)
     ends = [s["start"] + s["dur"] for s in src_shots]
     proc = subprocess.Popen(
         [ff, "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
