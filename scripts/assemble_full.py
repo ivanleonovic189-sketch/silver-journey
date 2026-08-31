@@ -33,8 +33,10 @@ VIDEOS = {
 # (начало, конец, блок, источник)
 # источник: ("photos", папка/файл...) | ("video", имя блока) | ("chorus", папка)
 PLAN = [
-    (0.0,   19.0, "Интро",            ("photos", ["Начало.png",
-                                                  "Начало только файлы для заставки.png"])),
+    # вступление: лист «Начало только файлы для заставки.png» режется на 4 плашки
+    # и показывается по хронометражу сценария (4 / 4 / 7 / 4 с)
+    (0.0,   19.0, "Интро",            ("intro", "Начало только файлы для заставки.png",
+                                       [4.0, 4.0, 7.0, 4.0])),
     (19.0,  38.0, "Люда",             ("video", "Люда", "ФОТО  БЛОК лЮДА 2")),
     (38.0,  57.0, "ПРИПЕВ 1",         ("chorus", "1 припев фото")),
     (57.0,  59.5, "Папа Сергея",      ("video", "Папа Сергея", None)),
@@ -131,6 +133,25 @@ def frame_from_photo(path, dst):
     bg.save(dst, quality=93)
 
 
+def frame_cover(im, dst):
+    """Кадр под срез: заполняет 1920x1080 целиком, лишнее обрезается."""
+    k = max(W / im.width, H / im.height)
+    im = im.resize((int(im.width * k), int(im.height * k)), Image.LANCZOS)
+    x, y = (im.width - W) // 2, (im.height - H) // 2
+    im.crop((x, y, x + W, y + H)).save(dst, quality=95)
+
+
+def intro_cards(path):
+    """Делит лист вступления на 4 плашки (сетка 2x2, порядок чтения)."""
+    im = Image.open(path).convert("RGB")
+    w, h = im.size
+    mx, my = w // 2, int(h * 0.512)          # шов между плашками
+    gap = int(h * 0.018)
+    return [im.crop(b) for b in (
+        (0, 0, mx, my - gap), (mx, 0, w, my - gap),
+        (0, my + gap, mx, h), (mx, my + gap, w, h))]
+
+
 def frame_placeholder(text, sub, dst):
     img = Image.new("RGB", (W, H), (18, 18, 24))
     d = ImageDraw.Draw(img)
@@ -183,6 +204,19 @@ def main():
             break
         span = end - start
         kind = spec[0]
+        if kind == "intro":
+            cards = intro_cards(os.path.join(src, spec[1]))
+            durs = spec[2]
+            t = start
+            for card, d in zip(cards, durs):
+                dst = os.path.join(work, f"{idx:04d}.jpg")
+                frame_cover(card, dst)
+                entries.append((dst, d, None))
+                rows.append([f"{int(t // 60):02d}:{t % 60:06.3f}", f"{d:.2f}",
+                             block, "", "плашка вступления"])
+                t += d
+                idx += 1
+            continue
         if kind == "video" and VIDEOS.get(spec[1]):
             shots = [("video", VIDEOS[spec[1]])]
         elif kind == "video":
