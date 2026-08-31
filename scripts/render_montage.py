@@ -239,13 +239,9 @@ class ClipSource:
         want = max(0, int(round((t - self.base) * FPS)))
         while self.idx < want:
             f = self._read()
-            if f is None:                      # клип кончился — пускаем сначала
-                self._open(self.start)
-                f = self._read()
-                if f is None:
-                    return self.cur if self.cur is not None else np.zeros(
-                        (H, W, 3), np.uint8)
-                want = 0
+            if f is None:                      # клип кончился — держим последний кадр
+                return self.cur if self.cur is not None else np.zeros(
+                    (H, W, 3), np.uint8)
             self.cur = f
             self.idx += 1
         return self.cur
