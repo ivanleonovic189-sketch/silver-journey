@@ -3,3 +3,4 @@ out/check_*.png
 assets/*
 !assets/.gitkeep
 __pycache__/
+!assets/heart_source.jpg
