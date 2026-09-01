@@ -124,6 +124,7 @@ if __name__ == "__main__":
         img = load_black_heart(src, size)
         img.save(f"out/black_heart_{size}.png")
         print(f"✓ out/black_heart_{size}.png")
-    # 100x100 WebP — формат статичного кастом-эмодзи Telegram
-    load_black_heart(src, 100).save("out/black_heart_100.webp", lossless=True)
-    print("✓ out/black_heart_100.webp")
+    # WebP: 100x100 для набора эмодзи, 512x512 для набора стикеров
+    for size in (100, 512):
+        load_black_heart(src, size).save(f"out/black_heart_{size}.webp", lossless=True)
+        print(f"✓ out/black_heart_{size}.webp")
