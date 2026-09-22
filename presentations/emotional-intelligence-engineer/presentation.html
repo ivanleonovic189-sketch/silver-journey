@@ -1,4 +1,5 @@
 <title>Сигнал и решение</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Oswald:wght@300;400;500;600;700&display=swap">
 <style>
@@ -25,13 +26,13 @@ body{
   -webkit-font-smoothing:antialiased;
 }
 /* ---------- сцена ---------- */
-#viewport{position:fixed;inset:0;display:grid;place-items:center;overflow:hidden;
+#viewport{position:relative;height:100vh;height:100dvh;min-height:320px;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;
   background:
     radial-gradient(1200px 700px at 78% -10%, rgba(255,176,58,.10), transparent 60%),
     radial-gradient(900px 600px at 10% 110%, rgba(78,216,196,.08), transparent 60%),
     var(--ink);
 }
-#stage{width:1600px;height:900px;position:relative;transform-origin:center center;flex:none}
+#stage{width:1600px;height:900px;position:relative;flex:none;transform-origin:center center;--s:min(calc((100vw - 20px)/1600),calc((100vh - 20px)/900));--s:min(calc((100vw - 20px)/1600),calc((100dvh - 20px - var(--pad,0px))/900));transform:scale(var(--s))}
 .slide{
   position:absolute;inset:0;display:none;flex-direction:column;
   padding:74px 88px 92px;gap:26px;background:var(--ink);overflow:hidden;
@@ -95,10 +96,11 @@ li::marker{color:var(--signal)}
 @media (prefers-reduced-motion:reduce){.deck-animate .slide.is-active .anim,.deck-animate .slide.is-active .draw{animation:none}}
 /* ---------- шасси ---------- */
 #bar{position:fixed;left:0;top:0;height:3px;background:var(--signal);width:0;z-index:40;transition:width .3s ease;box-shadow:0 0 14px rgba(255,176,58,.6)}
-#hud{position:fixed;right:16px;bottom:16px;z-index:40;display:flex;gap:8px;align-items:center;
+#hud{position:fixed;right:16px;bottom:16px;z-index:40;opacity:.22;transition:opacity .25s;display:flex;gap:8px;align-items:center;
   font-family:var(--f-m);font-size:13px;color:#7B90A8;background:rgba(10,17,28,.82);border:1px solid #223650;
   border-radius:999px;padding:7px 8px 7px 16px;backdrop-filter:blur(6px)}
 #hud b{color:#E9EFF7;font-weight:500}
+#hud:hover,#hud:focus-within,body.ui-on #hud{opacity:1}
 .nav{width:32px;height:32px;border-radius:50%;border:1px solid #2C4258;background:#14202F;color:#C9D8EA;
   font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;font-family:var(--f-b)}
 .nav:hover{background:#1C2B3E;color:#fff}
@@ -119,7 +121,7 @@ li::marker{color:var(--signal)}
 </style>
 <div id="bar"></div>
 <div id="viewport"><div id="stage">
-<section class="slide" data-n="1">
+<section class="slide is-active" data-n="1">
   <div class="head anim" style="--d:.05s"><p class="eyebrow">Доклад · 30 минут · + блиц</p></div>
   <div class="body" style="justify-content:flex-start;gap:26px;padding-top:26px">
     <h1 class="anim" style="--d:.12s;max-width:1240px">Эмоциональный интеллект<br>в работе инженера</h1>
@@ -618,6 +620,7 @@ li::marker{color:var(--signal)}
 
 <script>
 (function () {
+  var viewport = document.getElementById('viewport');
   var stage = document.getElementById('stage');
   var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
   var notes = document.getElementById('notes');
@@ -628,11 +631,14 @@ li::marker{color:var(--signal)}
   var i = 0, animate = false;
 
   function fit() {
-    var w = window.innerWidth, h = window.innerHeight;
-    if (!notes.hidden) h -= Math.min(notes.offsetHeight, h * 0.45);
-    var s = Math.min((w - 24) / 1600, (h - 24) / 900);
-    stage.style.transform = 'scale(' + s + ')';
-    stage.style.marginBottom = notes.hidden ? '0' : Math.min(notes.offsetHeight, window.innerHeight * 0.45) + 'px';
+    var box = viewport.getBoundingClientRect();
+    var w = box.width || window.innerWidth || 0;
+    var h = box.height || window.innerHeight || 0;
+    var pad = notes.hidden ? 0 : Math.min(notes.offsetHeight, h * 0.45);
+    document.documentElement.style.setProperty('--pad', pad + 'px');
+    var s = Math.min((w - 20) / 1600, (h - 20 - pad) / 900);
+    // если измерить не удалось, оставляем масштаб, посчитанный в CSS
+    if (isFinite(s) && s > 0.05) stage.style.setProperty('--s', s);
   }
 
   function show(n, push) {
@@ -696,7 +702,20 @@ li::marker{color:var(--signal)}
     x0 = null;
   }, { passive: true });
 
+  var uiTimer;
+  function poke() {
+    document.body.classList.add('ui-on');
+    clearTimeout(uiTimer);
+    uiTimer = setTimeout(function () { document.body.classList.remove('ui-on'); }, 2500);
+  }
+  document.addEventListener('mousemove', poke);
+  document.addEventListener('keydown', poke);
+  poke();
+
   window.addEventListener('resize', fit);
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(viewport);
+  requestAnimationFrame(fit);
+  setTimeout(fit, 300);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
 
   var start = parseInt((location.hash || '').slice(1), 10);
