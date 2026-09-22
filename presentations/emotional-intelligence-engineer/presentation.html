@@ -1,0 +1,706 @@
+<title>Сигнал и решение</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Oswald:wght@300;400;500;600;700&display=swap">
+<style>
+/* Единый «приборный» визуальный мир — сознательно одна тема (проекционный экран),
+   поэтому все цвета заданы явно, без зависимости от темы просмотрщика. */
+:root{
+  --ink:#0A111C; --ink2:#111C2B; --ink3:#162436;
+  --line:#22364F; --line2:#2C4258;
+  --paper:#ECF1F7; --paper2:#DCE4EE;
+  --text:#E9EFF7; --muted:#8FA6C0;
+  --signal:#FFB03A; --pulse:#4ED8C4; --alarm:#FF6F57;
+  --f-d:'Oswald','Arial Narrow',Arial,sans-serif;
+  --f-b:'Golos Text','Segoe UI',Arial,sans-serif;
+  --f-m:'JetBrains Mono',ui-monospace,'Courier New',monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.note{display:none}
+img{max-width:100%}
+html,body{height:100%}
+body{
+  margin:0;background:var(--ink);color:var(--text);
+  font-family:var(--f-b);overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+/* ---------- сцена ---------- */
+#viewport{position:fixed;inset:0;display:grid;place-items:center;overflow:hidden;
+  background:
+    radial-gradient(1200px 700px at 78% -10%, rgba(255,176,58,.10), transparent 60%),
+    radial-gradient(900px 600px at 10% 110%, rgba(78,216,196,.08), transparent 60%),
+    var(--ink);
+}
+#stage{width:1600px;height:900px;position:relative;transform-origin:center center;flex:none}
+.slide{
+  position:absolute;inset:0;display:none;flex-direction:column;
+  padding:74px 88px 92px;gap:26px;background:var(--ink);overflow:hidden;
+}
+.slide.is-active{display:flex}
+.slide::before{ /* инженерная сетка */
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:80px 80px;
+  -webkit-mask-image:radial-gradient(120% 90% at 50% 40%,#000 25%,transparent 78%);
+  mask-image:radial-gradient(120% 90% at 50% 40%,#000 25%,transparent 78%);
+}
+.slide>*{position:relative}
+.slide.paper{
+  background:var(--paper);
+  --text:#0A111C;--muted:#4C6179;--line:#CBD6E3;--line2:#B7C5D6;--ink2:#FFFFFF;--ink3:#E3EAF3;
+}
+.slide.paper::before{opacity:.75}
+.slide.beam{background:linear-gradient(135deg,#FFB03A 0%,#FF8A3D 55%,#FF6F57 100%);--text:#22140A;--muted:#5C3A1B;--line:rgba(34,20,10,.22)}
+/* ---------- типографика ---------- */
+.eyebrow{font-family:var(--f-m);font-size:19px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--signal);margin:0}
+.paper .eyebrow{color:#B26A00}
+.beam .eyebrow{color:#4A2B10}
+h1{font-family:var(--f-d);font-weight:600;font-size:104px;line-height:1.02;margin:0;letter-spacing:-.5px;text-wrap:balance}
+h2{font-family:var(--f-d);font-weight:500;font-size:62px;line-height:1.08;margin:0;text-wrap:balance}
+h3{font-family:var(--f-d);font-weight:500;font-size:34px;line-height:1.15;margin:0}
+p{margin:0;font-size:26px;line-height:1.48}
+.lead{font-size:34px;line-height:1.42;color:var(--muted)}
+.big{font-family:var(--f-d);font-weight:600;font-size:76px;line-height:1;color:var(--signal)}
+.mono{font-family:var(--f-m);font-size:20px;letter-spacing:.04em;color:var(--muted)}
+b,strong{font-weight:700;color:var(--text)}
+ul{margin:0;padding:0 0 0 30px}
+li{font-size:26px;line-height:1.5;margin:0 0 12px}
+li::marker{color:var(--signal)}
+/* ---------- структура ---------- */
+.head{display:flex;flex-direction:column;gap:14px;flex:none}
+.body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:34px;min-height:0}
+.row{display:flex;gap:26px}
+.row>*{flex:1;min-width:0}
+.panel{background:var(--ink2);border:1px solid var(--line2);border-radius:18px;padding:34px 36px;display:flex;flex-direction:column;gap:16px}
+.paper .panel{background:#fff;border-color:var(--line)}
+.panel.bad{border-color:rgba(255,111,87,.45);background:linear-gradient(180deg,rgba(255,111,87,.10),transparent 70%),var(--ink2)}
+.panel.good{border-color:rgba(78,216,196,.45);background:linear-gradient(180deg,rgba(78,216,196,.10),transparent 70%),var(--ink2)}
+.paper .panel.bad{background:linear-gradient(180deg,rgba(255,111,87,.12),#fff 70%)}
+.paper .panel.good{background:linear-gradient(180deg,rgba(78,216,196,.16),#fff 70%)}
+.tag{font-family:var(--f-m);font-size:17px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+.tag.bad{color:var(--alarm)} .tag.good{color:#17A692}
+.paper .tag.good{color:#0F8A78}
+.dot{width:10px;height:10px;border-radius:50%;background:currentColor;flex:none}
+.foot{position:absolute;left:88px;right:88px;bottom:38px;display:flex;justify-content:space-between;align-items:center;
+  font-family:var(--f-m);font-size:17px;letter-spacing:.08em;color:var(--muted)}
+.rule{height:1px;background:var(--line2);border:0;margin:0}
+.kicker{display:inline-flex;align-items:center;gap:12px;font-family:var(--f-m);font-size:18px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.kicker::before{content:"";width:44px;height:2px;background:var(--signal)}
+/* ---------- анимация появления ---------- */
+.deck-animate .slide.is-active .anim{animation:rise .5s cubic-bezier(.2,.7,.3,1) both;animation-delay:var(--d,0s)}
+@keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+.draw{stroke-dasharray:var(--len,2000);stroke-dashoffset:0}
+.deck-animate .slide.is-active .draw{animation:draw 1.1s ease-out both;animation-delay:var(--d,.15s)}
+@keyframes draw{from{stroke-dashoffset:var(--len,2000)}to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.deck-animate .slide.is-active .anim,.deck-animate .slide.is-active .draw{animation:none}}
+/* ---------- шасси ---------- */
+#bar{position:fixed;left:0;top:0;height:3px;background:var(--signal);width:0;z-index:40;transition:width .3s ease;box-shadow:0 0 14px rgba(255,176,58,.6)}
+#hud{position:fixed;right:16px;bottom:16px;z-index:40;display:flex;gap:8px;align-items:center;
+  font-family:var(--f-m);font-size:13px;color:#7B90A8;background:rgba(10,17,28,.82);border:1px solid #223650;
+  border-radius:999px;padding:7px 8px 7px 16px;backdrop-filter:blur(6px)}
+#hud b{color:#E9EFF7;font-weight:500}
+.nav{width:32px;height:32px;border-radius:50%;border:1px solid #2C4258;background:#14202F;color:#C9D8EA;
+  font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;font-family:var(--f-b)}
+.nav:hover{background:#1C2B3E;color:#fff}
+.nav:focus-visible,.reveal:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+#notes{position:fixed;left:0;right:0;bottom:0;z-index:45;max-height:46vh;overflow:auto;
+  background:rgba(8,14,23,.96);border-top:2px solid var(--signal);padding:22px 26px calc(22px + env(safe-area-inset-bottom,0px));
+  font-size:16px;line-height:1.6;color:#CFDCEB;backdrop-filter:blur(8px)}
+#notes h4{font-family:var(--f-m);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--signal);margin:0 0 8px}
+#notes p{font-size:16px;line-height:1.6}
+.reveal{font-family:var(--f-m);font-size:18px;letter-spacing:.1em;text-transform:uppercase;
+  background:transparent;color:var(--signal);border:1px solid var(--signal);border-radius:999px;
+  padding:12px 26px;cursor:pointer;align-self:flex-start}
+.reveal:hover{background:var(--signal);color:#1A1004}
+@media (max-width:700px){#hud{font-size:11px;padding:5px 6px 5px 12px}}
+@media print{#viewport{position:static;display:block}#stage{transform:none!important}
+  .slide{display:flex!important;position:relative;page-break-after:always;width:1600px;height:900px}
+  #hud,#bar,#notes{display:none}}
+</style>
+<div id="bar"></div>
+<div id="viewport"><div id="stage">
+<section class="slide" data-n="1">
+  <div class="head anim" style="--d:.05s"><p class="eyebrow">Доклад · 30 минут · + блиц</p></div>
+  <div class="body" style="justify-content:flex-start;gap:26px;padding-top:26px">
+    <h1 class="anim" style="--d:.12s;max-width:1240px">Эмоциональный интеллект<br>в работе инженера</h1>
+    <p class="lead anim" style="--d:.2s;max-width:860px">Эмоция — это сигнал. Инженер отличается не тем, что сигнала нет, а тем, что он умеет его прочитать и не принимать решение на пике.</p>
+  </div>
+  <svg viewBox="0 0 1424 240" width="1424" height="240" aria-label="Осциллограмма: резкий всплеск сигнала и его затухание" style="position:absolute;left:88px;bottom:112px">
+    <defs><linearGradient id="gsig" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4ED8C4"/><stop offset=".28" stop-color="#FFB03A"/><stop offset="1" stop-color="#4ED8C4"/></linearGradient></defs>
+    <line x1="0" y1="150" x2="1424" y2="150" stroke="#22364F" stroke-width="1"/>
+    <line x1="330" y1="16" x2="330" y2="224" stroke="#2C4258" stroke-width="1" stroke-dasharray="5 7"/>
+    <path class="draw" style="--len:3200;--d:.35s" d="M0.0 150.0 L4.2 150.0 L8.4 150.0 L12.6 150.0 L16.8 150.0 L20.9 150.0 L25.1 150.0 L29.3 150.0 L33.5 150.0 L37.7 150.0 L41.9 150.0 L46.1 150.0 L50.3 150.0 L54.4 150.0 L58.6 150.0 L62.8 150.0 L67.0 150.0 L71.2 150.0 L75.4 150.0 L79.6 150.0 L83.8 150.0 L88.0 150.0 L92.1 150.0 L96.3 150.0 L100.5 150.0 L104.7 150.0 L108.9 150.0 L113.1 150.0 L117.3 150.0 L121.5 150.0 L125.6 150.0 L129.8 150.0 L134.0 150.0 L138.2 150.0 L142.4 150.0 L146.6 150.0 L150.8 150.0 L155.0 150.0 L159.2 150.0 L163.3 150.0 L167.5 150.0 L171.7 150.0 L175.9 150.0 L180.1 150.0 L184.3 150.0 L188.5 150.0 L192.7 150.0 L196.8 150.0 L201.0 150.0 L205.2 150.0 L209.4 150.0 L213.6 150.0 L217.8 150.0 L222.0 150.0 L226.2 150.0 L230.4 150.0 L234.5 150.0 L238.7 150.0 L242.9 150.0 L247.1 150.0 L251.3 150.0 L255.5 150.0 L259.7 150.0 L263.9 150.0 L268.0 150.0 L272.2 150.0 L276.4 150.0 L280.6 150.0 L284.8 150.0 L289.0 150.0 L293.2 150.0 L297.4 150.0 L301.6 150.0 L305.7 150.0 L309.9 150.0 L314.1 150.0 L318.3 150.0 L322.5 150.0 L326.7 150.0 L330.9 145.1 L335.1 122.5 L339.2 102.5 L343.4 86.0 L347.6 73.5 L351.8 65.4 L356.0 61.6 L360.2 62.3 L364.4 67.0 L368.6 75.3 L372.8 86.6 L376.9 100.1 L381.1 115.2 L385.3 131.0 L389.5 146.7 L393.7 161.6 L397.9 175.0 L402.1 186.5 L406.3 195.6 L410.4 201.9 L414.6 205.5 L418.8 206.3 L423.0 204.3 L427.2 200.0 L431.4 193.6 L435.6 185.5 L439.8 176.3 L444.0 166.4 L448.1 156.3 L452.3 146.6 L456.5 137.6 L460.7 129.7 L464.9 123.3 L469.1 118.5 L473.3 115.5 L477.5 114.2 L481.6 114.7 L485.8 116.9 L490.0 120.4 L494.2 125.1 L498.4 130.7 L502.6 136.9 L506.8 143.3 L511.0 149.6 L515.2 155.5 L519.3 160.9 L523.5 165.4 L527.7 168.9 L531.9 171.3 L536.1 172.5 L540.3 172.7 L544.5 171.7 L548.7 169.9 L552.8 167.2 L557.0 163.8 L561.2 160.0 L565.4 156.0 L569.6 152.0 L573.8 148.0 L578.0 144.5 L582.2 141.4 L586.4 138.9 L590.5 137.0 L594.7 135.9 L598.9 135.5 L603.1 135.8 L607.3 136.8 L611.5 138.3 L615.7 140.3 L619.9 142.6 L624.0 145.1 L628.2 147.7 L632.4 150.2 L636.6 152.6 L640.8 154.7 L645.0 156.4 L649.2 157.8 L653.4 158.7 L657.6 159.1 L661.7 159.1 L665.9 158.7 L670.1 157.9 L674.3 156.7 L678.5 155.4 L682.7 153.8 L686.9 152.2 L691.1 150.5 L695.2 149.0 L699.4 147.6 L703.6 146.3 L707.8 145.4 L712.0 144.7 L716.2 144.3 L720.4 144.2 L724.6 144.3 L728.8 144.7 L732.9 145.4 L737.1 146.2 L741.3 147.1 L745.5 148.2 L749.7 149.2 L753.9 150.2 L758.1 151.2 L762.3 152.0 L766.4 152.7 L770.6 153.2 L774.8 153.6 L779.0 153.7 L783.2 153.7 L787.4 153.5 L791.6 153.1 L795.8 152.6 L800.0 152.1 L804.1 151.4 L808.3 150.8 L812.5 150.1 L816.7 149.5 L820.9 148.9 L825.1 148.5 L829.3 148.1 L833.5 147.8 L837.6 147.7 L841.8 147.6 L846.0 147.7 L850.2 147.9 L854.4 148.2 L858.6 148.5 L862.8 148.9 L867.0 149.3 L871.2 149.7 L875.3 150.2 L879.5 150.5 L883.7 150.9 L887.9 151.1 L892.1 151.3 L896.3 151.5 L900.5 151.5 L904.7 151.5 L908.8 151.4 L913.0 151.2 L917.2 151.0 L921.4 150.8 L925.6 150.5 L929.8 150.3 L934.0 150.0 L938.2 149.8 L942.4 149.5 L946.5 149.4 L950.7 149.2 L954.9 149.1 L959.1 149.1 L963.3 149.0 L967.5 149.1 L971.7 149.2 L975.9 149.3 L980.0 149.4 L984.2 149.6 L988.4 149.8 L992.6 149.9 L996.8 150.1 L1001.0 150.2 L1005.2 150.4 L1009.4 150.5 L1013.6 150.5 L1017.7 150.6 L1021.9 150.6 L1026.1 150.6 L1030.3 150.6 L1034.5 150.5 L1038.7 150.4 L1042.9 150.3 L1047.1 150.2 L1051.2 150.1 L1055.4 150.0 L1059.6 149.9 L1063.8 149.8 L1068.0 149.7 L1072.2 149.7 L1076.4 149.6 L1080.6 149.6 L1084.8 149.6 L1088.9 149.6 L1093.1 149.7 L1097.3 149.7 L1101.5 149.8 L1105.7 149.8 L1109.9 149.9 L1114.1 150.0 L1118.3 150.0 L1122.4 150.1 L1126.6 150.2 L1130.8 150.2 L1135.0 150.2 L1139.2 150.2 L1143.4 150.2 L1147.6 150.2 L1151.8 150.2 L1156.0 150.2 L1160.1 150.2 L1164.3 150.1 L1168.5 150.1 L1172.7 150.0 L1176.9 150.0 L1181.1 149.9 L1185.3 149.9 L1189.5 149.9 L1193.6 149.9 L1197.8 149.9 L1202.0 149.8 L1206.2 149.8 L1210.4 149.9 L1214.6 149.9 L1218.8 149.9 L1223.0 149.9 L1227.2 149.9 L1231.3 150.0 L1235.5 150.0 L1239.7 150.0 L1243.9 150.0 L1248.1 150.1 L1252.3 150.1 L1256.5 150.1 L1260.7 150.1 L1264.8 150.1 L1269.0 150.1 L1273.2 150.1 L1277.4 150.1 L1281.6 150.1 L1285.8 150.0 L1290.0 150.0 L1294.2 150.0 L1298.4 150.0 L1302.5 150.0 L1306.7 150.0 L1310.9 150.0 L1315.1 149.9 L1319.3 149.9 L1323.5 149.9 L1327.7 149.9 L1331.9 149.9 L1336.0 149.9 L1340.2 150.0 L1344.4 150.0 L1348.6 150.0 L1352.8 150.0 L1357.0 150.0 L1361.2 150.0 L1365.4 150.0 L1369.6 150.0 L1373.7 150.0 L1377.9 150.0 L1382.1 150.0 L1386.3 150.0 L1390.5 150.0 L1394.7 150.0 L1398.9 150.0 L1403.1 150.0 L1407.2 150.0 L1411.4 150.0 L1415.6 150.0 L1419.8 150.0 L1424.0 150.0" fill="none" stroke="url(#gsig)" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="330" cy="150" r="7" fill="#FFB03A"/>
+    <text x="314" y="142" text-anchor="end" fill="#8FA6C0" font-family="JetBrains Mono, monospace" font-size="18">событие</text>
+    <text x="1150" y="132" fill="#4ED8C4" font-family="JetBrains Mono, monospace" font-size="18">решение</text>
+  </svg>
+  <div class="foot"><span>[Имя докладчика] · [группа]</span><span>[дата]</span></div>
+  <aside class="note">Здравствуйте. Сразу о рамке: это не разговор «будьте добрее». Эмоциональный интеллект — рабочий инструмент, он влияет на качество требований, скорость код-ревью и на то, как команда переживает аварию. Метафора всего доклада на экране: эмоция ведёт себя как сигнал — резкий всплеск и затухание. Плохие решения принимают на пике, хорошие — после. Формат: двадцать минут рассказа, потом блиц из пяти вопросов, отвечаем вслух. Перебивайте вопросами.</aside>
+</section>
+<section class="slide paper" data-n="2">
+  <div class="head anim"><p class="eyebrow">С чего начнём</p></div>
+  <div class="body" style="flex-direction:row;align-items:center;gap:56px">
+    <div style="flex:1;display:flex;flex-direction:column;gap:30px">
+      <h2 class="anim" style="--d:.08s">Два выпускника. Один вуз, один стек, один год выпуска.</h2>
+      <p class="anim" style="--d:.16s;font-size:30px">Через три года первый ведёт команду, и его зовут в сложные проекты. Второй меняет работу в третий раз — «не сошлись с командой».</p>
+      <p class="anim" style="--d:.24s;font-size:30px;color:#B23B22"><b style="color:#B23B22">Разница почти никогда не в знании языка программирования.</b></p>
+    </div>
+    <svg viewBox="0 0 660 340" width="660" height="340" aria-label="Схема: две траектории, расходящиеся от общей точки старта" style="flex:none">
+      <line x1="30" y1="310" x2="646" y2="310" stroke="#B7C5D6" stroke-width="1.5"/>
+      <line x1="30" y1="12" x2="30" y2="310" stroke="#B7C5D6" stroke-width="1.5"/>
+      <g font-family="JetBrains Mono, monospace" font-size="15" fill="#6B7F96">
+        <text x="30" y="334">выпуск</text><text x="230" y="334">+1 год</text><text x="430" y="334">+2</text><text x="600" y="334">+3</text>
+        <text x="40" y="26" fill="#6B7F96">влияние в команде</text>
+      </g>
+      <g transform="translate(30,10)">
+        <path class="draw" style="--len:900;--d:.3s" d="M0.0 300.0 L10.5 297.1 L21.0 294.1 L31.5 291.0 L42.0 288.0 L52.5 284.8 L63.0 281.6 L73.5 278.3 L84.0 275.0 L94.5 271.6 L105.0 268.2 L115.5 264.7 L126.0 261.2 L136.5 257.6 L147.0 253.9 L157.5 250.2 L168.0 246.4 L178.5 242.6 L189.0 238.7 L199.5 234.8 L210.0 230.8 L220.5 226.8 L231.0 222.6 L241.5 218.5 L252.0 214.3 L262.5 210.0 L273.0 205.7 L283.5 201.3 L294.0 196.8 L304.5 192.4 L315.0 187.8 L325.5 183.2 L336.0 178.5 L346.5 173.8 L357.0 169.0 L367.5 164.2 L378.0 159.3 L388.5 154.4 L399.0 149.4 L409.5 144.3 L420.0 139.2 L430.5 134.0 L441.0 128.8 L451.5 123.5 L462.0 118.2 L472.5 112.8 L483.0 107.4 L493.5 101.8 L504.0 96.3 L514.5 90.7 L525.0 85.0 L535.5 79.3 L546.0 73.5 L556.5 67.6 L567.0 61.8 L577.5 55.8 L588.0 49.8 L598.5 43.7 L609.0 37.6 L619.5 31.4 L630.0 25.2" fill="none" stroke="#0F8A78" stroke-width="4" stroke-linecap="round"/>
+        <path class="draw" style="--len:900;--d:.5s" d="M0.0 300.0 L10.5 299.0 L21.0 297.9 L31.5 296.9 L42.0 295.9 L52.5 294.9 L63.0 293.8 L73.5 292.8 L84.0 291.9 L94.5 290.9 L105.0 289.9 L115.5 288.9 L126.0 288.0 L136.5 287.0 L147.0 286.1 L157.5 285.1 L168.0 284.2 L178.5 283.3 L189.0 282.4 L199.5 281.5 L210.0 280.6 L220.5 279.7 L231.0 278.8 L241.5 278.0 L252.0 277.1 L262.5 276.2 L273.0 275.4 L283.5 274.6 L294.0 273.7 L304.5 272.9 L315.0 272.1 L325.5 271.3 L336.0 270.5 L346.5 269.7 L357.0 268.9 L367.5 268.1 L378.0 267.4 L388.5 266.6 L399.0 265.9 L409.5 265.1 L420.0 264.4 L430.5 263.7 L441.0 263.0 L451.5 262.2 L462.0 261.5 L472.5 260.9 L483.0 260.2 L493.5 259.5 L504.0 258.8 L514.5 258.2 L525.0 257.5 L535.5 256.9 L546.0 256.2 L556.5 255.6 L567.0 255.0 L577.5 254.3 L588.0 253.7 L598.5 253.1 L609.0 252.6 L619.5 252.0 L630.0 251.4" fill="none" stroke="#C2410C" stroke-width="4" stroke-linecap="round" stroke-dasharray="0"/>
+      </g>
+      <circle cx="30" cy="310" r="7" fill="#0A111C"/>
+      <text x="470" y="78" font-family="Golos Text, sans-serif" font-size="19" fill="#0F8A78">первый</text>
+      <text x="470" y="240" font-family="Golos Text, sans-serif" font-size="19" fill="#C2410C">второй</text>
+      <text x="356" y="16" font-family="JetBrains Mono, monospace" font-size="13" fill="#93A4B8">схема, не данные</text>
+    </svg>
+  </div>
+  <div class="foot"><span>02</span><span>Что их различает?</span></div>
+  <aside class="note">Спросите зал: «как думаете, что их различает?» Дайте два-три ответа — обычно называют удачу, связи, умение себя продать. Это хороший вход: всё перечисленное — частные проявления одного навыка. Важно не обесценить hard skills: без них разговора нет вообще. Но при равном уровне техники дальше решает другое. График честно подписан «схема, не данные» — это не исследование, а иллюстрация. Полторы минуты, не больше.</aside>
+</section>
+<section class="slide" data-n="3">
+  <div class="head anim"><p class="eyebrow">Маршрут</p><h2>Полчаса, пять остановок</h2></div>
+  <div class="body" style="justify-content:center">
+      <div class="anim" style="--d:.8s;display:flex;align-items:baseline;gap:28px;padding:22px 0;border-bottom:1px solid var(--line2)">
+        <span class="mono" style="color:var(--signal);width:44px">01</span>
+        <span style="font-family:var(--f-d);font-size:40px;font-weight:500;width:400px">Что это такое</span>
+        <span style="font-size:24px;color:var(--muted);flex:1">определение и четыре части</span>
+        <span class="mono">5 мин</span>
+      </div>
+      <div class="anim" style="--d:.9s;display:flex;align-items:baseline;gap:28px;padding:22px 0;border-bottom:1px solid var(--line2)">
+        <span class="mono" style="color:var(--signal);width:44px">02</span>
+        <span style="font-family:var(--f-d);font-size:40px;font-weight:500;width:400px">Зачем инженеру</span>
+        <span style="font-size:24px;color:var(--muted);flex:1">что показали исследования</span>
+        <span class="mono">5 мин</span>
+      </div>
+      <div class="anim" style="--d:.10s;display:flex;align-items:baseline;gap:28px;padding:22px 0;border-bottom:1px solid var(--line2)">
+        <span class="mono" style="color:var(--signal);width:44px">03</span>
+        <span style="font-family:var(--f-d);font-size:40px;font-weight:500;width:400px">Три ситуации</span>
+        <span style="font-size:24px;color:var(--muted);flex:1">ревью · авария · заказчик</span>
+        <span class="mono">8 мин</span>
+      </div>
+      <div class="anim" style="--d:.11s;display:flex;align-items:baseline;gap:28px;padding:22px 0;border-bottom:1px solid var(--line2)">
+        <span class="mono" style="color:var(--signal);width:44px">04</span>
+        <span style="font-family:var(--f-d);font-size:40px;font-weight:500;width:400px">Приёмы</span>
+        <span style="font-size:24px;color:var(--muted);flex:1">что применить завтра</span>
+        <span class="mono">5 мин</span>
+      </div>
+      <div class="anim" style="--d:.12s;display:flex;align-items:baseline;gap:28px;padding:22px 0;border-bottom:1px solid var(--line2)">
+        <span class="mono" style="color:var(--signal);width:44px">05</span>
+        <span style="font-family:var(--f-d);font-size:40px;font-weight:500;width:400px">Блиц и выводы</span>
+        <span style="font-size:24px;color:var(--muted);flex:1">пять вопросов классу</span>
+        <span class="mono">7 мин</span>
+      </div></div>
+  <div class="foot"><span>03</span><span>В конце — блиц, отвечаем вслух</span></div>
+  <aside class="note">План проговорите быстро, 40 секунд, пальцем по строкам. Главное — анонсировать блиц: «в конце пять вопросов, отвечаем хором». Это держит внимание весь доклад. Не читайте строки дословно.</aside>
+</section>
+<section class="slide paper" data-n="4">
+  <div class="head anim"><p class="eyebrow">Определение</p></div>
+  <div class="body">
+    <p class="anim" style="--d:.08s;font-size:44px;line-height:1.36;border-left:6px solid var(--signal);padding-left:34px;max-width:1300px">
+      Эмоциональный интеллект — способность <b>распознавать</b> свои и чужие эмоции, <b>понимать их причины</b> и <b>использовать</b> это, чтобы управлять своим поведением и отношениями.</p>
+    <div class="row">
+      <div class="panel anim" style="--d:.16s;gap:14px">
+        <span class="mono" style="color:var(--signal)">01</span>
+        <h3>Распознать</h3><p style="color:var(--muted)">Заметить, что со мной и с собеседником происходит прямо сейчас</p>
+      </div>
+      <div class="panel anim" style="--d:.22s;gap:14px">
+        <span class="mono" style="color:var(--signal)">02</span>
+        <h3>Понять причину</h3><p style="color:var(--muted)">Откуда это взялось и на что оно сейчас влияет</p>
+      </div>
+      <div class="panel anim" style="--d:.28s;gap:14px">
+        <span class="mono" style="color:var(--signal)">03</span>
+        <h3>Использовать</h3><p style="color:var(--muted)">Выбрать действие, а не отдать руль эмоции</p>
+      </div></div>
+    <p class="anim" style="--d:.4s;font-size:24px;color:var(--muted)">Это <b>не</b> «всегда быть милым», <b>не</b> «прятать эмоции» и <b>не</b> врождённый талант.</p>
+  </div>
+  <div class="foot"><span>04</span><span>П. Сэловей и Дж. Мэйер, 1990 · Д. Гоулман, 1995</span></div>
+  <aside class="note">В определении три глагола — распознать, понять причину, использовать. Голосом выделите «использовать»: эмоция сама по себе не хороша и не плоха, вопрос в том, что вы с ней делаете. Нижняя строка — три частых заблуждения, по одному предложению на каждое: милым быть не обязательно, обязательно быть понятным; прятать эмоции — это не контроль, а отложенный взрыв; это навык, дальше покажу, как тренируется. Сэловей и Мэйер — научная статья, Гоулман — популяризатор. Две минуты.</aside>
+</section>
+<section class="slide" data-n="5">
+  <div class="head anim"><p class="eyebrow">Модель Д. Гоулмана</p><h2>Четыре части: две внутрь, две наружу</h2></div>
+  <div class="body" style="flex-direction:row;align-items:stretch;gap:24px">
+    <div style="flex:none;width:52px;display:flex;flex-direction:column;justify-content:space-around;align-items:center">
+      <span class="mono" style="writing-mode:vertical-rl;transform:rotate(180deg);color:var(--signal)">ПОНИМАЮ</span>
+      <span class="mono" style="writing-mode:vertical-rl;transform:rotate(180deg);color:var(--signal)">УПРАВЛЯЮ</span>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:18px">
+      <div class="mono" style="display:flex;gap:18px"><span style="flex:1;text-align:center;color:var(--pulse)">ФОКУС НА СЕБЕ</span><span style="flex:1;text-align:center;color:var(--pulse)">ФОКУС НА ДРУГИХ</span></div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:18px">
+        <div class="panel anim" style="--d:.14s;gap:10px">
+        <span class="mono" style="color:#FFB03A">01</span>
+        <h3>Самосознание</h3><p style="font-size:23px;color:var(--muted)">Замечаю, что раздражён, — и понимаю, что сейчас плохой момент спорить об архитектуре.</p></div>
+        <div class="panel anim" style="--d:.20s;gap:10px">
+        <span class="mono" style="color:#4ED8C4">03</span>
+        <h3>Эмпатия</h3><p style="font-size:23px;color:var(--muted)">Слышу за фразой «сделайте кнопку побольше» настоящую проблему пользователя.</p></div>
+        <div class="panel anim" style="--d:.26s;gap:10px">
+        <span class="mono" style="color:#FFB03A">02</span>
+        <h3>Саморегуляция</h3><p style="font-size:23px;color:var(--muted)">Не отправляю резкий комментарий в 23:40. Возвращаюсь к нему утром и переписываю.</p></div>
+        <div class="panel anim" style="--d:.32s;gap:10px">
+        <span class="mono" style="color:#4ED8C4">04</span>
+        <h3>Управление отношениями</h3><p style="font-size:23px;color:var(--muted)">Даю обратную связь так, что её можно услышать и применить, а не обидеться.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>05</span><span>Нельзя управлять тем, чего не замечаешь</span></div>
+  <aside class="note">Матрица читается по осям: слева направо — фокус на себе или на других, сверху вниз — понимаю или управляю. Порядок не случаен: нельзя управлять тем, чего не замечаешь, и трудно понять другого, если не понимаешь себя. Проведите один сквозной пример: замечаю, что меня бесит этот пул-реквест, поэтому не отвечаю сразу, думаю, почему человек так сделал — может, у него был жёсткий срок, — и формулирую комментарий, который он сможет применить. Один живой пример из своей практики здесь стоит трёх слайдов. Две минуты.</aside>
+</section>
+<section class="slide paper" data-n="6">
+  <div class="head anim"><p class="eyebrow">Возражение</p><h2>«Это не инженерная тема»</h2></div>
+  <div class="body">
+    <div class="row" style="align-items:stretch">
+      <div class="panel bad anim" style="--d:.1s">
+        <span class="tag bad"><i class="dot"></i>Миф</span>
+        <p style="font-size:32px;line-height:1.38">«Инженер отвечает за технологии. Эмоции и отношения — зона HR и менеджеров».</p>
+      </div>
+      <div class="panel good anim" style="--d:.2s">
+        <span class="tag good"><i class="dot"></i>Как есть</span>
+        <p style="font-size:32px;line-height:1.38">Код пишут в команде, требования приносят люди, решения защищают на встречах. Технологии — половина работы.</p>
+      </div>
+    </div>
+    <p class="anim" style="--d:.3s;font-size:36px;line-height:1.36"><b>Технические навыки открывают дверь в профессию. Эмоциональный интеллект решает, как далеко вы по ней пройдёте.</b></p>
+  </div>
+  <div class="foot"><span>06</span><span>Дальше — не мнение, а данные</span></div>
+  <aside class="note">Спросите класс: «кто слышал фразу вроде «я технарь, я не обязан объяснять»?» Руки поднимаются почти всегда. Скажите честно: позиция работает ровно до первого проекта, где решение нужно согласовать с тремя людьми. Нижнюю строку произнесите медленно — это опорный тезис доклада. И сразу переход: «это не моё мнение, дальше данные». Минута.</aside>
+</section>
+<section class="slide" data-n="7">
+  <div class="head anim"><p class="eyebrow">Данные</p><h2>Что нашли те, кто измерял</h2></div>
+  <div class="body" style="flex-direction:row;gap:26px;align-items:stretch">
+    <div class="panel anim" style="--d:.1s;flex:1">
+      <span class="mono" style="color:var(--pulse)">GOOGLE · ПРОЕКТ АРИСТОТЕЛЬ</span>
+      <h3>Что отличает сильную команду</h3>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px"><div style="display:flex;align-items:center;gap:16px;padding:11px 14px;border-radius:10px;
+        background:rgba(255,176,58,.16);border:1px solid rgba(255,176,58,.5)">
+        <span class="mono" style="color:#FFB03A;width:26px">1</span>
+        <span style="font-size:23px;color:var(--text);font-weight:700">Психологическая безопасность</span></div><div style="display:flex;align-items:center;gap:16px;padding:11px 14px;border-radius:10px;
+        background:transparent;border:1px solid transparent">
+        <span class="mono" style="color:#8FA6C0;width:26px">2</span>
+        <span style="font-size:23px;color:var(--muted);font-weight:400">Надёжность друг друга</span></div><div style="display:flex;align-items:center;gap:16px;padding:11px 14px;border-radius:10px;
+        background:transparent;border:1px solid transparent">
+        <span class="mono" style="color:#8FA6C0;width:26px">3</span>
+        <span style="font-size:23px;color:var(--muted);font-weight:400">Структура и ясность</span></div><div style="display:flex;align-items:center;gap:16px;padding:11px 14px;border-radius:10px;
+        background:transparent;border:1px solid transparent">
+        <span class="mono" style="color:#8FA6C0;width:26px">4</span>
+        <span style="font-size:23px;color:var(--muted);font-weight:400">Значимость работы</span></div><div style="display:flex;align-items:center;gap:16px;padding:11px 14px;border-radius:10px;
+        background:transparent;border:1px solid transparent">
+        <span class="mono" style="color:#8FA6C0;width:26px">5</span>
+        <span style="font-size:23px;color:var(--muted);font-weight:400">Влияние результата</span></div></div>
+      <p style="font-size:21px;color:var(--muted);margin-top:auto">Состав по уровню специалистов не попал в первую строку. Попала возможность сказать «я ошибся» без потерь.</p>
+    </div>
+    <div class="panel anim" style="--d:.2s;flex:1">
+      <span class="mono" style="color:var(--pulse)">GOOGLE · ПРОЕКТ КИСЛОРОД</span>
+      <h3>Качества лучших руководителей</h3>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px"><div style="display:flex;align-items:center;gap:16px;padding:9px 14px;border-radius:10px;background:transparent;border:1px solid transparent"><span class="mono" style="color:#8FA6C0;width:26px">1</span><span style="font-size:22px;color:var(--muted);font-weight:400">Коучинг команды</span></div><div style="display:flex;align-items:center;gap:16px;padding:9px 14px;border-radius:10px;background:transparent;border:1px solid transparent"><span class="mono" style="color:#8FA6C0;width:26px">2</span><span style="font-size:22px;color:var(--muted);font-weight:400">Не микроменеджит</span></div><div style="display:flex;align-items:center;gap:16px;padding:9px 14px;border-radius:10px;background:transparent;border:1px solid transparent"><span class="mono" style="color:#8FA6C0;width:26px">3</span><span style="font-size:22px;color:var(--muted);font-weight:400">Заботится о людях</span></div><div style="display:flex;align-items:center;gap:16px;padding:9px 14px;border-radius:10px;background:transparent;border:1px solid transparent"><span class="mono" style="color:#8FA6C0;width:26px">4</span><span style="font-size:22px;color:var(--muted);font-weight:400">Ориентирован на результат</span></div><div style="display:flex;align-items:center;gap:16px;padding:9px 14px;border-radius:10px;background:transparent;border:1px solid transparent"><span class="mono" style="color:#8FA6C0;width:26px">5</span><span style="font-size:22px;color:var(--muted);font-weight:400">Слушает и делится информацией</span></div><div style="display:flex;align-items:center;gap:16px;padding:9px 14px;border-radius:10px;background:transparent;border:1px solid transparent"><span class="mono" style="color:#8FA6C0;width:26px">6</span><span style="font-size:22px;color:var(--muted);font-weight:400">Помогает с карьерой</span></div><div style="display:flex;align-items:center;gap:16px;padding:9px 14px;border-radius:10px;background:transparent;border:1px solid transparent"><span class="mono" style="color:#8FA6C0;width:26px">7</span><span style="font-size:22px;color:var(--muted);font-weight:400">Имеет ясное видение</span></div><div style="display:flex;align-items:center;gap:16px;padding:9px 14px;border-radius:10px;background:rgba(255,111,87,.16);border:1px solid rgba(255,111,87,.5)"><span class="mono" style="color:#FF6F57;width:26px">8</span><span style="font-size:22px;color:var(--text);font-weight:700">Технические навыки</span></div></div>
+      <p style="font-size:21px;color:var(--muted);margin-top:auto">Техническая экспертиза в списке есть — на восьмом месте из восьми. Первые семь — про работу с людьми.</p>
+    </div>
+  </div>
+  <div class="foot"><span>07</span><span>Отраслевые отчёты о провалах проектов называют те же причины: требования и коммуникация</span></div>
+  <aside class="note">Два факта, по 40 секунд каждый, не углубляйтесь. Психологическая безопасность — это когда в команде можно сказать «я не понял» или «я ошибся» без ущерба для репутации; именно её Google назвал главным отличием сильных команд. «Проект Кислород» — про качества хороших руководителей: техническая экспертиза в списке есть, но последняя. Если спросят точные цифры — честно скажите, что это публичные исследования компании, детали легко находятся по названиям. Никогда не выдумывайте проценты. Две минуты.</aside>
+</section>
+<section class="slide" data-n="8">
+  <div class="head anim"><p class="eyebrow">Карта</p><h2>Где инженер встречает это каждый день</h2></div>
+  <div class="body" style="gap:26px">
+    <svg viewBox="0 0 1424 90" width="1424" height="90" aria-label="Схема рабочего цикла: требования, разработка и ревью, инцидент" style="flex:none">
+      <line x1="10" y1="45" x2="1414" y2="45" stroke="#2C4258" stroke-width="2"/>
+      <path class="draw" style="--len:1500;--d:.2s" d="M10 45 L1414 45" stroke="#FFB03A" stroke-width="2" fill="none"/>
+      <g fill="#0A111C" stroke="#FFB03A" stroke-width="3">
+        <circle cx="240" cy="45" r="13"/><circle cx="712" cy="45" r="13"/><circle cx="1184" cy="45" r="13"/></g>
+      <g fill="#FFB03A"><circle cx="240" cy="45" r="4"/><circle cx="712" cy="45" r="4"/><circle cx="1184" cy="45" r="4"/></g>
+    </svg>
+    <div class="row" style="align-items:stretch"><div class="panel anim" style="--d:.20s">
+      <span class="mono" style="color:var(--signal)">ЭТАП 1</span><h3>Требования</h3>
+      <p style="font-size:23px;color:var(--muted)">Услышать, что человеку нужно на самом деле, а не записать первую формулировку</p></div><div class="panel anim" style="--d:.28s">
+      <span class="mono" style="color:var(--signal)">ЭТАП 2</span><h3>Разработка и ревью</h3>
+      <p style="font-size:23px;color:var(--muted)">Сказать правду о коде так, чтобы её приняли, а не начали защищаться</p></div><div class="panel anim" style="--d:.36s">
+      <span class="mono" style="color:var(--signal)">ЭТАП 3</span><h3>Инцидент и разбор</h3>
+      <p style="font-size:23px;color:var(--muted)">Сохранить холодную голову и чинить систему, а не искать виноватого</p></div></div>
+  </div>
+  <div class="foot"><span>08</span><span>Разберём каждый этап</span></div>
+  <aside class="note">Это карта следующих трёх слайдов. Скажите: эмоциональный интеллект — не отдельное занятие по вторникам, он вшит в обычный рабочий цикл. Пройдите по этапам одной фразой на каждый и сразу дальше. Сорок секунд.</aside>
+</section>
+<section class="slide" data-n="9">
+  <div class="head anim"><p class="eyebrow">Ситуация 1</p><h2>Код-ревью коллеги</h2></div>
+  <div class="body" style="flex-direction:row;gap:28px;align-items:stretch">
+    <div class="panel anim" style="--d:.1s;flex:1.05;gap:18px">
+      <span class="tag bad"><i class="dot"></i>Так не работает</span>
+      <div class="mono" style="display:flex;justify-content:space-between"><span>feature/cart-total · #482</span><span>src/cart.js</span></div>
+      <div style="font-family:var(--f-m);font-size:19px;border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:#0C1724">
+        <div style="padding:10px 16px;color:#5C7086">14&nbsp;&nbsp;for (const item of items) {</div>
+        <div style="padding:10px 16px;background:rgba(255,111,87,.14);border-left:3px solid #FF6F57;color:#E9EFF7">15&nbsp;&nbsp;&nbsp;&nbsp;total += items.filter(i =&gt; i.id === item.id)</div>
+        <div style="padding:10px 16px;color:#5C7086">16&nbsp;&nbsp;}</div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="width:44px;height:44px;border-radius:50%;background:rgba(255,111,87,.2);border:1px solid rgba(255,111,87,.5);display:grid;place-items:center;font-family:var(--f-d);font-size:20px;color:#FF6F57;flex:none">К</div>
+        <div style="background:rgba(255,111,87,.10);border:1px solid rgba(255,111,87,.35);border-radius:14px;padding:16px 20px">
+          <p style="font-size:25px">«Кто вообще так пишет? Переделай.»</p></div>
+      </div>
+      <p style="font-size:21px;color:var(--muted);margin-top:auto">Оценка человека. Ответ предсказуем: защита, спор, испорченные отношения на месяц.</p>
+    </div>
+    <div class="panel good anim" style="--d:.22s;flex:1.05;gap:18px;justify-content:center">
+      <span class="tag good"><i class="dot"></i>Тот же комментарий, но рабочий</span>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="width:44px;height:44px;border-radius:50%;background:rgba(78,216,196,.18);border:1px solid rgba(78,216,196,.5);display:grid;place-items:center;font-family:var(--f-d);font-size:20px;color:#4ED8C4;flex:none">К</div>
+        <div style="background:rgba(78,216,196,.10);border:1px solid rgba(78,216,196,.35);border-radius:14px;padding:18px 22px">
+          <p style="font-size:26px;line-height:1.4">«Здесь список обходится дважды — на 100 тысячах записей будет заметная просадка. Предлагаю вынести фильтрацию отдельно, могу показать пример.»</p></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+        <span class="mono" style="border:1px solid var(--line2);border-radius:99px;padding:7px 16px">факт</span>
+        <span class="mono" style="border:1px solid var(--line2);border-radius:99px;padding:7px 16px">последствие</span>
+        <span class="mono" style="border:1px solid var(--line2);border-radius:99px;padding:7px 16px">предложение</span>
+      </div>
+      <p style="font-size:21px;color:var(--muted)">Автор не стал мягче. Он стал точнее: обсуждается код, а не человек.</p>
+    </div>
+  </div>
+  <div class="foot"><span>09</span><span>Ревью — место, где рождаются тихие конфликты</span></div>
+  <aside class="note">Самый узнаваемый пример. Прочитайте левую реплику с интонацией — класс смеётся, потому что узнаёт. Потом правую. Главная мысль: во втором варианте автор не стал мягче, он стал точнее. Претензия та же, но есть факт, последствие и выход. Добавьте: ревью — то место, где чаще всего рождаются тихие конфликты в командах. Если есть время, спросите: а как вы сами реагируете на комментарии к своему коду? Две минуты.</aside>
+</section>
+<section class="slide" data-n="10">
+  <div class="head anim"><p class="eyebrow">Ситуация 2</p><h2>23:00, прод лежит, дедлайн завтра</h2></div>
+  <div class="body" style="gap:24px">
+    <div style="display:flex;gap:30px;align-items:center">
+      <svg viewBox="0 0 1240 300" width="1240" height="300" aria-label="График: всплеск напряжения после аварии и его спад" style="flex:1">
+        <rect x="0" y="18" width="1240" height="92" fill="rgba(255,111,87,.10)"/>
+        <text x="14" y="46" font-family="JetBrains Mono, monospace" font-size="17" fill="#FF6F57">зона худших решений</text>
+        <line x1="0" y1="250" x2="1240" y2="250" stroke="#2C4258" stroke-width="1.5"/>
+        <path class="draw" style="--len:3000;--d:.25s" d="M0.0 250.0 L3.6 250.0 L7.3 250.0 L10.9 250.0 L14.6 250.0 L18.2 250.0 L21.9 250.0 L25.5 250.0 L29.2 250.0 L32.8 250.0 L36.5 250.0 L40.1 250.0 L43.8 250.0 L47.4 250.0 L51.1 250.0 L54.7 250.0 L58.4 250.0 L62.0 250.0 L65.6 250.0 L69.3 250.0 L72.9 250.0 L76.6 250.0 L80.2 250.0 L83.9 250.0 L87.5 250.0 L91.2 250.0 L94.8 250.0 L98.5 250.0 L102.1 250.0 L105.8 250.0 L109.4 250.0 L113.1 250.0 L116.7 250.0 L120.4 250.0 L124.0 250.0 L127.6 250.0 L131.3 250.0 L134.9 250.0 L138.6 250.0 L142.2 250.0 L145.9 250.0 L149.5 250.0 L153.2 250.0 L156.8 250.0 L160.5 250.0 L164.1 250.0 L167.8 250.0 L171.4 250.0 L175.1 250.0 L178.7 250.0 L182.4 250.0 L186.0 250.0 L189.6 250.0 L193.3 250.0 L196.9 250.0 L200.6 250.0 L204.2 250.0 L207.9 250.0 L211.5 250.0 L215.2 250.0 L218.8 250.0 L222.5 249.1 L226.1 246.0 L229.8 241.4 L233.4 235.8 L237.1 229.1 L240.7 221.5 L244.4 213.1 L248.0 203.8 L251.6 193.8 L255.3 183.1 L258.9 171.7 L262.6 159.7 L266.2 147.0 L269.9 133.7 L273.5 119.8 L277.2 105.3 L280.8 90.3 L284.5 74.7 L288.1 58.5 L291.8 51.7 L295.4 55.1 L299.1 58.5 L302.7 61.8 L306.4 65.1 L310.0 68.3 L313.6 71.5 L317.3 74.6 L320.9 77.6 L324.6 80.6 L328.2 83.5 L331.9 86.4 L335.5 89.3 L339.2 92.1 L342.8 94.8 L346.5 97.5 L350.1 100.1 L353.8 102.7 L357.4 105.3 L361.1 107.8 L364.7 110.3 L368.4 112.7 L372.0 115.1 L375.6 117.4 L379.3 119.7 L382.9 122.0 L386.6 124.2 L390.2 126.4 L393.9 128.5 L397.5 130.6 L401.2 132.7 L404.8 134.7 L408.5 136.7 L412.1 138.7 L415.8 140.6 L419.4 142.5 L423.1 144.4 L426.7 146.2 L430.4 148.0 L434.0 149.8 L437.6 151.5 L441.3 153.3 L444.9 154.9 L448.6 156.6 L452.2 158.2 L455.9 159.8 L459.5 161.4 L463.2 162.9 L466.8 164.4 L470.5 165.9 L474.1 167.4 L477.8 168.8 L481.4 170.2 L485.1 171.6 L488.7 172.9 L492.4 174.3 L496.0 175.6 L499.6 176.9 L503.3 178.2 L506.9 179.4 L510.6 180.6 L514.2 181.8 L517.9 183.0 L521.5 184.2 L525.2 185.3 L528.8 186.4 L532.5 187.5 L536.1 188.6 L539.8 189.7 L543.4 190.7 L547.1 191.8 L550.7 192.8 L554.4 193.8 L558.0 194.7 L561.6 195.7 L565.3 196.6 L568.9 197.6 L572.6 198.5 L576.2 199.4 L579.9 200.3 L583.5 201.1 L587.2 202.0 L590.8 202.8 L594.5 203.6 L598.1 204.4 L601.8 205.2 L605.4 206.0 L609.1 206.8 L612.7 207.5 L616.4 208.2 L620.0 209.0 L623.6 209.7 L627.3 210.4 L630.9 211.1 L634.6 211.7 L638.2 212.4 L641.9 213.1 L645.5 213.7 L649.2 214.3 L652.8 215.0 L656.5 215.6 L660.1 216.2 L663.8 216.7 L667.4 217.3 L671.1 217.9 L674.7 218.4 L678.4 219.0 L682.0 219.5 L685.6 220.1 L689.3 220.6 L692.9 221.1 L696.6 221.6 L700.2 222.1 L703.9 222.6 L707.5 223.0 L711.2 223.5 L714.8 224.0 L718.5 224.4 L722.1 224.9 L725.8 225.3 L729.4 225.7 L733.1 226.2 L736.7 226.6 L740.4 227.0 L744.0 227.4 L747.6 227.8 L751.3 228.2 L754.9 228.5 L758.6 228.9 L762.2 229.3 L765.9 229.6 L769.5 230.0 L773.2 230.3 L776.8 230.7 L780.5 231.0 L784.1 231.3 L787.8 231.7 L791.4 232.0 L795.1 232.3 L798.7 232.6 L802.4 232.9 L806.0 233.2 L809.6 233.5 L813.3 233.8 L816.9 234.1 L820.6 234.3 L824.2 234.6 L827.9 234.9 L831.5 235.1 L835.2 235.4 L838.8 235.6 L842.5 235.9 L846.1 236.1 L849.8 236.4 L853.4 236.6 L857.1 236.8 L860.7 237.1 L864.4 237.3 L868.0 237.5 L871.6 237.7 L875.3 238.0 L878.9 238.2 L882.6 238.4 L886.2 238.6 L889.9 238.8 L893.5 239.0 L897.2 239.2 L900.8 239.3 L904.5 239.5 L908.1 239.7 L911.8 239.9 L915.4 240.1 L919.1 240.2 L922.7 240.4 L926.4 240.6 L930.0 240.7 L933.6 240.9 L937.3 241.1 L940.9 241.2 L944.6 241.4 L948.2 241.5 L951.9 241.7 L955.5 241.8 L959.2 241.9 L962.8 242.1 L966.5 242.2 L970.1 242.4 L973.8 242.5 L977.4 242.6 L981.1 242.7 L984.7 242.9 L988.4 243.0 L992.0 243.1 L995.6 243.2 L999.3 243.4 L1002.9 243.5 L1006.6 243.6 L1010.2 243.7 L1013.9 243.8 L1017.5 243.9 L1021.2 244.0 L1024.8 244.1 L1028.5 244.2 L1032.1 244.3 L1035.8 244.4 L1039.4 244.5 L1043.1 244.6 L1046.7 244.7 L1050.4 244.8 L1054.0 244.9 L1057.6 245.0 L1061.3 245.1 L1064.9 245.2 L1068.6 245.2 L1072.2 245.3 L1075.9 245.4 L1079.5 245.5 L1083.2 245.6 L1086.8 245.6 L1090.5 245.7 L1094.1 245.8 L1097.8 245.9 L1101.4 245.9 L1105.1 246.0 L1108.7 246.1 L1112.4 246.1 L1116.0 246.2 L1119.6 246.3 L1123.3 246.3 L1126.9 246.4 L1130.6 246.5 L1134.2 246.5 L1137.9 246.6 L1141.5 246.6 L1145.2 246.7 L1148.8 246.8 L1152.5 246.8 L1156.1 246.9 L1159.8 246.9 L1163.4 247.0 L1167.1 247.0 L1170.7 247.1 L1174.4 247.1 L1178.0 247.2 L1181.6 247.2 L1185.3 247.3 L1188.9 247.3 L1192.6 247.4 L1196.2 247.4 L1199.9 247.5 L1203.5 247.5 L1207.2 247.6 L1210.8 247.6 L1214.5 247.6 L1218.1 247.7 L1221.8 247.7 L1225.4 247.8 L1229.1 247.8 L1232.7 247.8 L1236.4 247.9 L1240.0 247.9" fill="none" stroke="#FF6F57" stroke-width="3.5" stroke-linecap="round"/>
+        <g stroke="#2C4258" stroke-dasharray="4 8"><line x1="220" y1="30" x2="220" y2="268"/><line x1="470" y1="30" x2="470" y2="268"/><line x1="900" y1="30" x2="900" y2="268"/></g>
+        <g font-family="JetBrains Mono, monospace" font-size="17" fill="#8FA6C0">
+          <text x="232" y="286">алерт</text><text x="482" y="286">+2 минуты</text><text x="912" y="286">+15 минут</text></g>
+        <circle cx="290" cy="50" r="6" fill="#FF6F57"/>
+        <text x="306" y="56" font-family="Golos Text, sans-serif" font-size="20" fill="#FF6F57">«кто это задеплоил?»</text>
+        <circle cx="900" cy="222" r="6" fill="#4ED8C4"/>
+        <text x="916" y="228" font-family="Golos Text, sans-serif" font-size="20" fill="#4ED8C4">здесь чинят по-настоящему</text>
+      </svg>
+    </div>
+    <div class="row" style="align-items:stretch">
+      <div class="panel bad anim" style="--d:.2s"><span class="tag bad"><i class="dot"></i>Что делает стресс</span>
+        <ul style="margin-top:2px"><li>Сужает внимание до одной гипотезы</li><li>Толкает искать виноватого</li><li>Требует действовать немедленно</li></ul></div>
+      <div class="panel good anim" style="--d:.3s"><span class="tag good"><i class="dot"></i>Что делает ЭИ</span>
+        <ul style="margin-top:2px"><li>Назвать состояние: «мы все на нервах»</li><li>Разделить: сначала чиним — потом разбираем</li><li>Говорить фактами и по очереди</li></ul></div>
+    </div>
+  </div>
+  <div class="foot"><span>10</span><span>Разбор без виноватых: «что в процессе позволило этому дойти до прода?»</span></div>
+  <aside class="note">Идея слайда: стресс не делает нас глупее навсегда, но на несколько минут реально сужает мышление — мы цепляемся за первую версию и перестаём слушать. На графике это заштрихованная зона. Приём простой: произнести вслух, что происходит с командой, — эмоция, которую назвали, теряет часть силы. Нижняя строка про blameless postmortem, разбор без обвинений: логика инженерная, а не гуманистическая — там, где за ошибку наказывают, ошибки начинают скрывать, и авария повторяется. Две минуты.</aside>
+</section>
+<section class="slide" data-n="11">
+  <div class="head anim"><p class="eyebrow">Ситуация 3</p><h2>Разговор с заказчиком</h2></div>
+  <div class="body" style="flex-direction:row;gap:28px;align-items:stretch">
+    <div class="panel bad anim" style="--d:.1s;gap:18px">
+      <span class="tag bad"><i class="dot"></i>Так не работает</span>
+      <div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px">
+      <span class="mono" style="font-size:15px">заказчик</span>
+      <div style="background:var(--ink3);border:1px solid var(--line2);border-radius:18px 18px 18px 4px;padding:15px 20px;max-width:88%">
+        <p style="font-size:24px;line-height:1.4">Нам нужно, чтобы отчёт выгружался одной кнопкой. К пятнице.</p></div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <span class="mono" style="font-size:15px">инженер</span>
+      <div style="background:rgba(255,111,87,.12);border:1px solid rgba(255,111,87,.4);border-radius:18px 18px 4px 18px;padding:15px 20px;max-width:88%">
+        <p style="font-size:24px;line-height:1.4">Это технически невозможно. У нас там легаси и высокая связность модулей.</p></div></div>
+      <p style="font-size:21px;color:var(--muted);margin-top:auto">Человек слышит «мне отказали» — и идёт решать вопрос через вашего руководителя.</p>
+    </div>
+    <div class="panel good anim" style="--d:.22s;gap:18px">
+      <span class="tag good"><i class="dot"></i>Так работает</span>
+      <div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px">
+      <span class="mono" style="font-size:15px">заказчик</span>
+      <div style="background:var(--ink3);border:1px solid var(--line2);border-radius:18px 18px 18px 4px;padding:15px 20px;max-width:88%">
+        <p style="font-size:24px;line-height:1.4">Нам нужно, чтобы отчёт выгружался одной кнопкой. К пятнице.</p></div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <span class="mono" style="font-size:15px">инженер</span>
+      <div style="background:rgba(78,216,196,.12);border:1px solid rgba(78,216,196,.4);border-radius:18px 18px 4px 18px;padding:15px 20px;max-width:88%">
+        <p style="font-size:24px;line-height:1.4">Расскажите, что должно получиться у пользователя? Так, как описано, — три недели. Есть вариант за четыре дня, вот что он не закрывает.</p></div></div>
+      <p style="font-size:21px;color:var(--muted);margin-top:auto">Человек получает выбор и понимает цену. Решение остаётся инженерным.</p>
+    </div>
+  </div>
+  <div class="foot"><span>11</span><span>Заказчик редко ошибается в том, что ему мешает, — чаще в том, как это чинить</span></div>
+  <aside class="note">Главный тезис: эмпатия здесь не означает соглашаться. Она означает понять задачу за требованием и дать выбор вместо отказа. «Технически невозможно» почти всегда значит «дорого» или «долго» — честнее сказать именно это, в неделях и рисках. Второе: жаргон в разговоре с нетехническим человеком воспринимается не как компетентность, а как неуважение. Нижнюю строку произнесите отдельно, она хорошо запоминается. Две минуты.</aside>
+</section><style>
+.opts{display:flex;flex-direction:column;gap:16px}
+.opt{display:flex;align-items:center;gap:24px;text-align:left;width:100%;cursor:pointer;
+  background:var(--ink2);border:1px solid var(--line2);border-radius:16px;padding:20px 26px;
+  color:var(--text);font-family:var(--f-b);font-size:28px;line-height:1.35;transition:.18s}
+.opt:hover{border-color:#3E5A79;background:#16233F}
+.opt .key{font-family:var(--f-d);font-size:26px;font-weight:600;color:var(--signal);
+  width:46px;height:46px;border-radius:50%;border:1px solid var(--line2);display:grid;place-items:center;flex:none}
+.opt:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+.q.revealed .opt[data-ok="1"]{border-color:#4ED8C4;background:rgba(78,216,196,.14)}
+.q.revealed .opt[data-ok="1"] .key{color:#4ED8C4;border-color:#4ED8C4}
+.q.revealed .opt[data-ok="0"]{opacity:.42}
+.verdict{display:flex;gap:16px;align-items:flex-start;border-left:3px solid var(--pulse);padding-left:22px}
+</style>
+<section class="slide paper" data-n="12">
+  <div class="head anim"><p class="eyebrow">Инструменты</p><h2>Четыре приёма, которые работают завтра</h2></div>
+  <div class="body"><div class="row" style="align-items:stretch"><div class="panel anim" style="--d:.10s;gap:18px">
+      <svg viewBox="0 0 52 52" width="52" height="52" aria-hidden="true" style="color:#FFB03A"><circle cx="26" cy="26" r="22" stroke="currentColor" stroke-width="2.5" fill="none"/><rect x="19" y="17" width="5.5" height="18" rx="2" fill="currentColor"/><rect x="28" y="17" width="5.5" height="18" rx="2" fill="currentColor"/></svg>
+      <h3>Пауза</h3><p style="font-size:23px;color:var(--muted)">Вдох и шесть секунд. Пик проходит быстро — решайте после него, а не в нём.</p></div><div class="panel anim" style="--d:.17s;gap:18px">
+      <svg viewBox="0 0 52 52" width="52" height="52" aria-hidden="true" style="color:#FFB03A"><path d="M6 10h24l16 16-20 20L6 30V10z" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linejoin="round"/><circle cx="17" cy="21" r="4" fill="currentColor"/></svg>
+      <h3>Назвать</h3><p style="font-size:23px;color:var(--muted)">«Я сейчас раздражён». Названная эмоция теряет часть силы.</p></div><div class="panel anim" style="--d:.24s;gap:18px">
+      <svg viewBox="0 0 52 52" width="52" height="52" aria-hidden="true" style="color:#4ED8C4"><path d="M6 12h40v26H24L12 48v-10H6V12z" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linejoin="round"/><path d="M20 21v10M20 21h-5M26 21v10h6V21h-6z" stroke="currentColor" stroke-width="2.5" fill="none"/></svg>
+      <h3>Я-сообщение</h3><p style="font-size:23px;color:var(--muted)">Говорите о факте и его последствиях, а не о характере человека.</p></div><div class="panel anim" style="--d:.31s;gap:18px">
+      <svg viewBox="0 0 52 52" width="52" height="52" aria-hidden="true" style="color:#4ED8C4"><path d="M14 42c6-8 2-12 6-18M10 22a16 16 0 1132 0c0 9-9 10-9 16a7 7 0 01-13 3" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
+      <h3>Переспросить</h3><p style="font-size:23px;color:var(--muted)">«Правильно понял: тебе важно, чтобы…» — снимает половину споров.</p></div></div>
+  <p class="anim" style="--d:.4s;font-size:25px;color:var(--muted)">Первый приём работает, даже когда вас уже захлестнуло. Остальные три — когда вы успели им воспользоваться.</p></div>
+  <div class="foot"><span>12</span><span>Можно применить на ближайшей лабораторной</span></div>
+  <aside class="note">Обещайте классу практическую пользу: эти четыре вещи применимы уже на ближайшей лабораторной. Пауза — единственный приём, который работает на пике: физиологически острый всплеск живёт секунды, дальше это уже ваш выбор. «Назвать» можно про себя, вслух не обязательно. Четвёртый приём покажите прямо в аудитории: возьмите чей-нибудь вопрос и переформулируйте своими словами — эффект виден сразу. Две минуты.</aside>
+</section>
+<section class="slide" data-n="13">
+  <div class="head anim"><p class="eyebrow">Формула</p><h2>Как сказать неприятное и быть услышанным</h2></div>
+  <div class="body" style="gap:34px">
+    <div style="display:flex;gap:16px;align-items:stretch"><div class="anim" style="--d:.12s;flex:1;display:flex;flex-direction:column;gap:10px;
+      background:var(--ink2);
+      border:1px solid var(--line2);border-radius:16px;padding:24px 26px">
+      <span class="mono" style="color:var(--muted)">Когда</span>
+      <span style="font-family:var(--f-d);font-size:36px;font-weight:500;color:var(--signal)">[факт]</span>
+      <span style="font-size:20px;line-height:1.4;color:var(--muted)">Что снял бы видеорегистратор. Без оценок.</span></div><div class="anim" style="--d:.18s;flex:1;display:flex;flex-direction:column;gap:10px;
+      background:var(--ink2);
+      border:1px solid var(--line2);border-radius:16px;padding:24px 26px">
+      <span class="mono" style="color:var(--muted)">я</span>
+      <span style="font-family:var(--f-d);font-size:36px;font-weight:500;color:var(--signal)">[последствие]</span>
+      <span style="font-size:20px;line-height:1.4;color:var(--muted)">Что из-за этого происходит с работой.</span></div><div class="anim" style="--d:.24s;flex:1;display:flex;flex-direction:column;gap:10px;
+      background:var(--ink2);
+      border:1px solid var(--line2);border-radius:16px;padding:24px 26px">
+      <span class="mono" style="color:var(--muted)">мне важно</span>
+      <span style="font-family:var(--f-d);font-size:36px;font-weight:500;color:var(--signal)">[причина]</span>
+      <span style="font-size:20px;line-height:1.4;color:var(--muted)">Ваш интерес. Делает просьбу человеческой.</span></div><div class="anim" style="--d:.30s;flex:1;display:flex;flex-direction:column;gap:10px;
+      background:linear-gradient(160deg,#FFB03A,#FF8A3D);
+      border:1px solid transparent;border-radius:16px;padding:24px 26px">
+      <span class="mono" style="color:#3A2208">предлагаю</span>
+      <span style="font-family:var(--f-d);font-size:36px;font-weight:500;color:#22140A">[действие]</span>
+      <span style="font-size:20px;line-height:1.4;color:#4A2B10">Без этого получается жалоба.</span></div></div>
+    <div class="panel anim" style="--d:.4s;border-color:rgba(78,216,196,.4)">
+      <span class="mono" style="color:var(--pulse)">ПРИМЕР</span>
+      <p style="font-size:32px;line-height:1.42">«Когда задачи переносят в спринте без обсуждения, я теряю контекст и переделываю работу. Мне важно доводить начатое до конца. Предлагаю фиксировать изменения в треде до дейли.»</p>
+    </div>
+    <p class="anim" style="--d:.5s;font-size:24px;color:var(--muted)">Сравните: «ты вечно всё меняешь на ходу».</p>
+  </div>
+  <div class="foot"><span>13</span><span>Факт → последствие → причина → предложение</span></div>
+  <aside class="note">Самый прикладной слайд доклада. Разберите формулу по частям, как на экране. Прочитайте пример целиком, потом строку внизу — контраст слышен сразу. Если есть минута, дайте классу упражнение: пусть кто-нибудь переформулирует по схеме фразу «ты опять не написал документацию». Две минуты.</aside>
+</section>
+<section class="slide paper" data-n="14">
+  <div class="head anim"><p class="eyebrow">Практика</p><h2>Как это тренировать</h2></div>
+  <div class="body" style="justify-content:center;gap:0"><div class="anim" style="--d:.10s;display:flex;align-items:center;gap:30px;padding:24px 0;border-bottom:1px solid var(--line2)">
+      <span style="font-family:var(--f-d);font-size:46px;font-weight:600;color:var(--signal);width:70px">01</span>
+      <span style="font-size:31px;line-height:1.35">Две минуты в конце дня: что я сегодня чувствовал и как это повлияло на мои решения</span></div><div class="anim" style="--d:.16s;display:flex;align-items:center;gap:30px;padding:24px 0;border-bottom:1px solid var(--line2)">
+      <span style="font-family:var(--f-d);font-size:46px;font-weight:600;color:var(--signal);width:70px">02</span>
+      <span style="font-size:31px;line-height:1.35">Спросить троих: «что мне стоит делать иначе, когда мы работаем вместе?»</span></div><div class="anim" style="--d:.22s;display:flex;align-items:center;gap:30px;padding:24px 0;border-bottom:1px solid var(--line2)">
+      <span style="font-family:var(--f-d);font-size:46px;font-weight:600;color:var(--signal);width:70px">03</span>
+      <span style="font-size:31px;line-height:1.35">Ретроспектива команды — бесплатный тренажёр: говорим о процессе, а не о людях</span></div><div class="anim" style="--d:.28s;display:flex;align-items:center;gap:30px;padding:24px 0;border-bottom:1px solid var(--line2)">
+      <span style="font-family:var(--f-d);font-size:46px;font-weight:600;color:var(--signal);width:70px">04</span>
+      <span style="font-size:31px;line-height:1.35">Читать паузы и лица на созвонах так же внимательно, как логи</span></div>
+    <p class="anim" style="--d:.4s;font-size:32px;margin-top:30px"><b>Эмоциональный интеллект — навык, а не характер. Тренируется повторением, как и всё остальное.</b></p></div>
+  <div class="foot"><span>14</span><span>Дальше — блиц</span></div>
+  <aside class="note">Ключ к слайду — последняя строка: это навык. Людям часто кажется «либо дано, либо нет», и это удобная отговорка. Второй пункт самый неприятный и самый полезный: попросить обратную связь у трёх человек, с которыми вы реально работали. Предупредите: в первый раз будет некомфортно, это нормально. Третий пункт привяжите к их учебным проектам — ретро после сдачи лабораторной работает так же, как в компании. Полторы минуты. Дальше смените темп: начинается блиц.</aside>
+</section>
+<section class="slide beam" data-n="15">
+  <div class="body" style="justify-content:center;gap:28px">
+    <p class="eyebrow anim">Часть 5</p>
+    <h1 class="anim" style="--d:.1s;font-size:168px;color:#22140A">Блиц</h1>
+    <p class="anim" style="--d:.18s;font-size:44px;color:#3A2208;max-width:1100px">Пять вопросов · пять минут · отвечаем вслух</p>
+    <p class="anim" style="--d:.26s;font-size:26px;color:#5C3A1B;max-width:1000px">Ловушек нет. Есть варианты, о которых интересно поспорить.</p>
+  </div>
+  <div class="foot" style="color:#5C3A1B"><span>15</span><span>Показать ответ — пробел или клик по варианту</span></div>
+  <aside class="note">Смена темпа. Подойдите ближе к классу, говорите быстрее и громче. Правила: показываю вопрос, считаю до трёх, все отвечают буквой хором или поднимают руку. После ответа 15–20 секунд на объяснение, не больше, иначе блиц превращается в лекцию. Если класс стесняется — просите отвечать хором, это снимает неловкость. Ответ на слайде открывается кликом по варианту или клавишей «Показать ответ».</aside>
+</section>
+<section class="slide q" data-n="16">
+  <div class="head anim"><p class="eyebrow">Вопрос 1 из 5</p><h2 style="max-width:1300px">Коллега резко раскритиковал ваше решение на дейли при всех. Что делаете первым?</h2></div>
+  <div class="body" style="justify-content:center;gap:26px">
+    <div class="opts"><button class="opt" data-ok="0"><span class="key">А</span><span>Отвечаю тем же тоном и защищаю решение</span></button><button class="opt" data-ok="1"><span class="key">Б</span><span>Беру паузу и спрашиваю: «что именно вызывает сомнения?»</span></button><button class="opt" data-ok="0"><span class="key">В</span><span>Молчу и запоминаю обиду</span></button></div>
+    <button class="reveal" type="button">Показать ответ</button>
+    <p class="verdict" hidden><span style="font-size:24px;color:var(--muted);line-height:1.45">Уточняющий вопрос делает три вещи сразу: даёт вам паузу, переводит разговор с эмоции на предмет и показывает, что критики вы не боитесь.</span></p>
+  </div>
+  <div class="foot"><span>Блиц · 1/5</span><span>16</span></div>
+  <aside class="note">Правильный ответ — Б. Вариант А — эскалация при свидетелях, после неё договариваться сложнее. Вариант В — самый частый в жизни и самый вредный: эмоция никуда не девается, она вернётся через неделю в другом месте.</aside>
+</section>
+<section class="slide q" data-n="17">
+  <div class="head anim"><p class="eyebrow">Вопрос 2 из 5</p><h2 style="max-width:1300px">Что Google назвал главным признаком эффективной команды?</h2></div>
+  <div class="body" style="justify-content:center;gap:26px">
+    <div class="opts"><button class="opt" data-ok="0"><span class="key">А</span><span>Средний уровень квалификации участников</span></button><button class="opt" data-ok="1"><span class="key">Б</span><span>Психологическую безопасность в команде</span></button><button class="opt" data-ok="0"><span class="key">В</span><span>Жёсткие сроки и чёткий контроль</span></button></div>
+    <button class="reveal" type="button">Показать ответ</button>
+    <p class="verdict" hidden><span style="font-size:24px;color:var(--muted);line-height:1.45">«Проект Аристотель», 2015. Психологическая безопасность — возможность сказать «я не знаю» или «я ошибся» без ущерба для себя.</span></p>
+  </div>
+  <div class="foot"><span>Блиц · 2/5</span><span>17</span></div>
+  <aside class="note">Правильный ответ — Б. Сильные специалисты без этого работают хуже, чем средние с ней: люди перестают задавать вопросы и молча тащат риски до продакшена.</aside>
+</section>
+<section class="slide q" data-n="18">
+  <div class="head anim"><p class="eyebrow">Вопрос 3 из 5</p><h2 style="max-width:1300px">Где здесь я-сообщение?</h2></div>
+  <div class="body" style="justify-content:center;gap:26px">
+    <div class="opts"><button class="opt" data-ok="0"><span class="key">А</span><span>«Ты вечно ломаешь сборку»</span></button><button class="opt" data-ok="1"><span class="key">Б</span><span>«Когда сборка падает без предупреждения, я теряю час на откат»</span></button><button class="opt" data-ok="0"><span class="key">В</span><span>«Нормальные люди так не коммитят»</span></button></div>
+    <button class="reveal" type="button">Показать ответ</button>
+    <p class="verdict" hidden><span style="font-size:24px;color:var(--muted);line-height:1.45">Есть факт — сборка падает без предупреждения — и последствие для говорящего. Нет оценки личности.</span></p>
+  </div>
+  <div class="foot"><span>Блиц · 3/5</span><span>18</span></div>
+  <aside class="note">Правильный ответ — Б. А и В — ты-сообщения с обобщением («вечно», «нормальные люди»); на них невозможно ответить по существу, можно только защищаться. Обратите внимание класса: вариант Б не мягче, он конкретнее.</aside>
+</section>
+<section class="slide q" data-n="19">
+  <div class="head anim"><p class="eyebrow">Вопрос 4 из 5</p><h2 style="max-width:1300px">Инцидент на проде. Какой вопрос задаёт зрелая команда на разборе?</h2></div>
+  <div class="body" style="justify-content:center;gap:26px">
+    <div class="opts"><button class="opt" data-ok="0"><span class="key">А</span><span>«Кто это задеплоил?»</span></button><button class="opt" data-ok="0"><span class="key">Б</span><span>«Почему ты не проверил?»</span></button><button class="opt" data-ok="1"><span class="key">В</span><span>«Что в нашем процессе позволило этому дойти до прода?»</span></button></div>
+    <button class="reveal" type="button">Показать ответ</button>
+    <p class="verdict" hidden><span style="font-size:24px;color:var(--muted);line-height:1.45">Это принцип blameless postmortem — разбора без поиска виноватых.</span></p>
+  </div>
+  <div class="foot"><span>Блиц · 4/5</span><span>19</span></div>
+  <aside class="note">Правильный ответ — В. Логика инженерная, а не гуманистическая: там, где за ошибку наказывают, ошибки скрывают, и авария повторяется. Вопрос В ищет дыру в процессе — тесты, ревью, мониторинг — и её можно закрыть навсегда, в отличие от выговора человеку.</aside>
+</section>
+<section class="slide q" data-n="20">
+  <div class="head anim"><p class="eyebrow">Вопрос 5 из 5</p><h2 style="max-width:1300px">Эмпатия в работе инженера — это…</h2></div>
+  <div class="body" style="justify-content:center;gap:26px">
+    <div class="opts"><button class="opt" data-ok="0"><span class="key">А</span><span>Соглашаться со всеми, чтобы избежать конфликта</span></button><button class="opt" data-ok="1"><span class="key">Б</span><span>Понимать мотивы собеседника и при этом отстаивать инженерную позицию</span></button><button class="opt" data-ok="0"><span class="key">В</span><span>Всегда сохранять невозмутимое лицо</span></button></div>
+    <button class="reveal" type="button">Показать ответ</button>
+    <p class="verdict" hidden><span style="font-size:24px;color:var(--muted);line-height:1.45">Эмпатия не отменяет вашу экспертизу и не обязывает соглашаться.</span></p>
+  </div>
+  <div class="foot"><span>Блиц · 5/5</span><span>20</span></div>
+  <aside class="note">Правильный ответ — Б. Это самое частое недопонимание темы, поэтому вопрос последний. Вы можете понять, почему заказчик давит на сроки, и всё равно сказать, что за неделю это не сделать, — но сказать так, чтобы вас услышали. Вариант А — избегание, вариант В — подавление эмоций, к интеллекту отношения не имеет.</aside>
+</section>
+<section class="slide paper" data-n="21">
+  <div class="head anim"><p class="eyebrow">Блиц · итог</p><h2>Ответы</h2></div>
+  <div class="body" style="justify-content:center;gap:0"><div class="anim" style="--d:.10s;display:flex;align-items:center;gap:28px;padding:18px 0;border-bottom:1px solid var(--line)">
+      <span class="mono" style="width:40px">01</span>
+      <span style="font-family:var(--f-d);font-size:32px;font-weight:600;color:#0F8A78;width:46px">Б</span>
+      <span style="font-size:26px">Пауза и уточняющий вопрос снимают защиту с обеих сторон</span></div><div class="anim" style="--d:.15s;display:flex;align-items:center;gap:28px;padding:18px 0;border-bottom:1px solid var(--line)">
+      <span class="mono" style="width:40px">02</span>
+      <span style="font-family:var(--f-d);font-size:32px;font-weight:600;color:#0F8A78;width:46px">Б</span>
+      <span style="font-size:26px">Психологическая безопасность — «Проект Аристотель», Google</span></div><div class="anim" style="--d:.20s;display:flex;align-items:center;gap:28px;padding:18px 0;border-bottom:1px solid var(--line)">
+      <span class="mono" style="width:40px">03</span>
+      <span style="font-family:var(--f-d);font-size:32px;font-weight:600;color:#0F8A78;width:46px">Б</span>
+      <span style="font-size:26px">Есть факт и последствие, нет оценки личности</span></div><div class="anim" style="--d:.25s;display:flex;align-items:center;gap:28px;padding:18px 0;border-bottom:1px solid var(--line)">
+      <span class="mono" style="width:40px">04</span>
+      <span style="font-family:var(--f-d);font-size:32px;font-weight:600;color:#0F8A78;width:46px">В</span>
+      <span style="font-size:26px">Разбор без виноватых чинит процесс, а не наказывает человека</span></div><div class="anim" style="--d:.30s;display:flex;align-items:center;gap:28px;padding:18px 0;border-bottom:1px solid var(--line)">
+      <span class="mono" style="width:40px">05</span>
+      <span style="font-family:var(--f-d);font-size:32px;font-weight:600;color:#0F8A78;width:46px">Б</span>
+      <span style="font-size:26px">Эмпатия не отменяет инженерную позицию и право сказать «нет»</span></div>
+    <p class="anim" style="--d:.4s;font-size:32px;margin-top:34px">Во всех пяти случаях выигрывает не самый мягкий ответ, а самый <b>точный</b>.</p></div>
+  <div class="foot"><span>21</span><span>Кто ответил правильно на все пять?</span></div>
+  <aside class="note">Сведите блиц за 30–40 секунд: пройдите по строкам, задержитесь только там, где класс ошибался. Главная мысль — нижняя строка: эмоциональный интеллект не про мягкость, а про точность формулировок. Спросите, кто ответил правильно на все пять, и похвалите.</aside>
+</section>
+<section class="slide" data-n="22">
+  <div class="head anim"><p class="eyebrow">Итог</p><h2>Три вывода</h2></div>
+  <div class="body" style="gap:22px"><div class="panel anim" style="--d:.10s;flex-direction:row;align-items:center;gap:30px;border-left:4px solid var(--signal)">
+      <span style="font-family:var(--f-d);font-size:60px;font-weight:600;color:var(--signal);flex:none">1</span>
+      <p style="font-size:31px;line-height:1.38">Эмоции есть у каждого инженера. Вопрос только в том, замечаете их вы — или они управляют вашими решениями.</p></div><div class="panel anim" style="--d:.18s;flex-direction:row;align-items:center;gap:30px;border-left:4px solid var(--signal)">
+      <span style="font-family:var(--f-d);font-size:60px;font-weight:600;color:var(--signal);flex:none">2</span>
+      <p style="font-size:31px;line-height:1.38">Это не про «быть хорошим», а про точность в работе с людьми: факт, последствие, предложение.</p></div><div class="panel anim" style="--d:.26s;flex-direction:row;align-items:center;gap:30px;border-left:4px solid var(--signal)">
+      <span style="font-family:var(--f-d);font-size:60px;font-weight:600;color:var(--signal);flex:none">3</span>
+      <p style="font-size:31px;line-height:1.38">Это навык. Он тренируется на ревью, ретро и созвонах — там же, где вы уже работаете.</p></div></div>
+  <div class="foot"><span>22</span><span>На защите диплома вас тоже будут слушать люди</span></div>
+  <aside class="note">Финальная сборка. Говорите спокойнее и медленнее, чем в блице. Каждый вывод — одно предложение, ничего нового не добавляйте. Если хочется закончить сильно, скажите своими словами: на защите диплома и на собеседовании вас будут слушать люди — и решать тоже они. Минута.</aside>
+</section>
+<section class="slide" data-n="23">
+  <div class="body" style="justify-content:center;gap:30px">
+    <span class="kicker anim">Спасибо</span>
+    <h1 class="anim" style="--d:.1s;font-size:124px">Вопросы?</h1>
+    <p class="anim" style="--d:.18s;font-size:42px;color:var(--signal);max-width:1100px">Код мы пишем один раз. С людьми работаем каждый день.</p>
+  </div>
+  <svg viewBox="0 0 1360 150" width="1360" height="150" aria-label="Спокойный сигнал" style="position:absolute;left:88px;bottom:118px;opacity:.85">
+    <line x1="0" y1="86" x2="1360" y2="86" stroke="#22364F" stroke-width="1"/>
+    <path class="draw" style="--len:2600;--d:.3s" d="M0.0 86.0 L4.0 86.0 L8.0 86.0 L12.0 86.0 L16.0 86.0 L20.0 86.0 L24.0 86.0 L28.0 86.0 L32.0 86.0 L36.0 86.0 L40.0 86.0 L44.0 86.0 L48.0 86.0 L52.0 86.0 L56.0 86.0 L60.0 86.0 L64.0 86.0 L68.0 86.0 L72.0 86.0 L76.0 86.0 L80.0 86.0 L84.0 86.0 L88.0 86.0 L92.0 86.0 L96.0 86.0 L100.0 86.0 L104.0 86.0 L108.0 86.0 L112.0 86.0 L116.0 86.0 L120.0 86.0 L124.0 86.0 L128.0 86.0 L132.0 86.0 L136.0 86.0 L140.0 86.0 L144.0 86.0 L148.0 86.0 L152.0 86.0 L156.0 86.0 L160.0 86.0 L164.0 86.0 L168.0 86.0 L172.0 86.0 L176.0 86.0 L180.0 86.0 L184.0 86.0 L188.0 86.0 L192.0 86.0 L196.0 86.0 L200.0 86.0 L204.0 86.0 L208.0 86.0 L212.0 86.0 L216.0 86.0 L220.0 86.0 L224.0 86.0 L228.0 86.0 L232.0 86.0 L236.0 86.0 L240.0 86.0 L244.0 86.0 L248.0 86.0 L252.0 86.0 L256.0 86.0 L260.0 86.0 L264.0 86.0 L268.0 86.0 L272.0 86.0 L276.0 86.0 L280.0 86.0 L284.0 86.0 L288.0 86.0 L292.0 86.0 L296.0 86.0 L300.0 86.0 L304.0 76.5 L308.0 68.1 L312.0 60.9 L316.0 55.1 L320.0 50.8 L324.0 48.1 L328.0 46.8 L332.0 47.0 L336.0 48.5 L340.0 51.1 L344.0 54.7 L348.0 59.1 L352.0 64.1 L356.0 69.5 L360.0 75.0 L364.0 80.4 L368.0 85.6 L372.0 90.5 L376.0 94.8 L380.0 98.4 L384.0 101.4 L388.0 103.6 L392.0 105.1 L396.0 105.8 L400.0 105.7 L404.0 105.0 L408.0 103.7 L412.0 101.9 L416.0 99.7 L420.0 97.2 L424.0 94.6 L428.0 91.8 L432.0 89.0 L436.0 86.4 L440.0 83.9 L444.0 81.7 L448.0 79.8 L452.0 78.3 L456.0 77.2 L460.0 76.4 L464.0 76.0 L468.0 76.0 L472.0 76.3 L476.0 77.0 L480.0 77.9 L484.0 79.0 L488.0 80.2 L492.0 81.6 L496.0 83.0 L500.0 84.4 L504.0 85.7 L508.0 87.0 L512.0 88.1 L516.0 89.0 L520.0 89.8 L524.0 90.4 L528.0 90.8 L532.0 91.0 L536.0 91.0 L540.0 90.9 L544.0 90.6 L548.0 90.1 L552.0 89.6 L556.0 89.0 L560.0 88.3 L564.0 87.6 L568.0 86.9 L572.0 86.2 L576.0 85.6 L580.0 85.0 L584.0 84.5 L588.0 84.1 L592.0 83.8 L596.0 83.6 L600.0 83.5 L604.0 83.4 L608.0 83.5 L612.0 83.7 L616.0 83.9 L620.0 84.2 L624.0 84.5 L628.0 84.8 L632.0 85.2 L636.0 85.5 L640.0 85.9 L644.0 86.2 L648.0 86.5 L652.0 86.7 L656.0 87.0 L660.0 87.1 L664.0 87.2 L668.0 87.3 L672.0 87.3 L676.0 87.3 L680.0 87.2 L684.0 87.1 L688.0 86.9 L692.0 86.8 L696.0 86.6 L700.0 86.4 L704.0 86.2 L708.0 86.1 L712.0 85.9 L716.0 85.8 L720.0 85.6 L724.0 85.5 L728.0 85.4 L732.0 85.4 L736.0 85.4 L740.0 85.3 L744.0 85.4 L748.0 85.4 L752.0 85.5 L756.0 85.5 L760.0 85.6 L764.0 85.7 L768.0 85.8 L772.0 85.9 L776.0 86.0 L780.0 86.0 L784.0 86.1 L788.0 86.2 L792.0 86.2 L796.0 86.3 L800.0 86.3 L804.0 86.3 L808.0 86.3 L812.0 86.3 L816.0 86.3 L820.0 86.3 L824.0 86.2 L828.0 86.2 L832.0 86.2 L836.0 86.1 L840.0 86.1 L844.0 86.0 L848.0 86.0 L852.0 85.9 L856.0 85.9 L860.0 85.9 L864.0 85.9 L868.0 85.8 L872.0 85.8 L876.0 85.8 L880.0 85.8 L884.0 85.8 L888.0 85.9 L892.0 85.9 L896.0 85.9 L900.0 85.9 L904.0 85.9 L908.0 86.0 L912.0 86.0 L916.0 86.0 L920.0 86.0 L924.0 86.0 L928.0 86.1 L932.0 86.1 L936.0 86.1 L940.0 86.1 L944.0 86.1 L948.0 86.1 L952.0 86.1 L956.0 86.1 L960.0 86.1 L964.0 86.1 L968.0 86.0 L972.0 86.0 L976.0 86.0 L980.0 86.0 L984.0 86.0 L988.0 86.0 L992.0 86.0 L996.0 86.0 L1000.0 86.0 L1004.0 86.0 L1008.0 86.0 L1012.0 86.0 L1016.0 86.0 L1020.0 86.0 L1024.0 86.0 L1028.0 86.0 L1032.0 86.0 L1036.0 86.0 L1040.0 86.0 L1044.0 86.0 L1048.0 86.0 L1052.0 86.0 L1056.0 86.0 L1060.0 86.0 L1064.0 86.0 L1068.0 86.0 L1072.0 86.0 L1076.0 86.0 L1080.0 86.0 L1084.0 86.0 L1088.0 86.0 L1092.0 86.0 L1096.0 86.0 L1100.0 86.0 L1104.0 86.0 L1108.0 86.0 L1112.0 86.0 L1116.0 86.0 L1120.0 86.0 L1124.0 86.0 L1128.0 86.0 L1132.0 86.0 L1136.0 86.0 L1140.0 86.0 L1144.0 86.0 L1148.0 86.0 L1152.0 86.0 L1156.0 86.0 L1160.0 86.0 L1164.0 86.0 L1168.0 86.0 L1172.0 86.0 L1176.0 86.0 L1180.0 86.0 L1184.0 86.0 L1188.0 86.0 L1192.0 86.0 L1196.0 86.0 L1200.0 86.0 L1204.0 86.0 L1208.0 86.0 L1212.0 86.0 L1216.0 86.0 L1220.0 86.0 L1224.0 86.0 L1228.0 86.0 L1232.0 86.0 L1236.0 86.0 L1240.0 86.0 L1244.0 86.0 L1248.0 86.0 L1252.0 86.0 L1256.0 86.0 L1260.0 86.0 L1264.0 86.0 L1268.0 86.0 L1272.0 86.0 L1276.0 86.0 L1280.0 86.0 L1284.0 86.0 L1288.0 86.0 L1292.0 86.0 L1296.0 86.0 L1300.0 86.0 L1304.0 86.0 L1308.0 86.0 L1312.0 86.0 L1316.0 86.0 L1320.0 86.0 L1324.0 86.0 L1328.0 86.0 L1332.0 86.0 L1336.0 86.0 L1340.0 86.0 L1344.0 86.0 L1348.0 86.0 L1352.0 86.0 L1356.0 86.0 L1360.0 86.0" fill="none" stroke="#4ED8C4" stroke-width="3" stroke-linecap="round"/>
+  </svg>
+  <div class="foot"><span>[Имя докладчика] · [контакт]</span><span>Salovey &amp; Mayer (1990) · Goleman (1995) · Google re:Work</span></div>
+  <aside class="note">Оставьте слайд на время вопросов. Заготовки: «А если человек в команде токсичный?» — ЭИ не обязывает терпеть, он помогает сформулировать проблему фактами и спокойно эскалировать. «Это врождённое?» — нет, компоненты тренируются, в отличие от IQ. «А если я интроверт?» — эмоциональный интеллект и общительность разные вещи; внимательные молчаливые люди часто в нём сильнее. Если вопросов нет — закончите фразой со слайда.</aside>
+</section></div></div>
+<div id="hud">
+  <button class="nav" id="prev" type="button" aria-label="Предыдущий слайд">&#8592;</button>
+  <button class="nav" id="next" type="button" aria-label="Следующий слайд">&#8594;</button>
+  <span><b id="cur">1</b> / <span id="tot">23</span></span>
+  <button class="nav" id="notesBtn" type="button" aria-label="Заметки докладчика" title="Заметки докладчика (S)">S</button>
+</div>
+
+<div id="notes" hidden>
+  <h4>Заметки докладчика · S — скрыть</h4>
+  <p id="noteText"></p>
+</div>
+
+<script>
+(function () {
+  var stage = document.getElementById('stage');
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var notes = document.getElementById('notes');
+  var noteText = document.getElementById('noteText');
+  var bar = document.getElementById('bar');
+  var cur = document.getElementById('cur');
+  document.getElementById('tot').textContent = slides.length;
+  var i = 0, animate = false;
+
+  function fit() {
+    var w = window.innerWidth, h = window.innerHeight;
+    if (!notes.hidden) h -= Math.min(notes.offsetHeight, h * 0.45);
+    var s = Math.min((w - 24) / 1600, (h - 24) / 900);
+    stage.style.transform = 'scale(' + s + ')';
+    stage.style.marginBottom = notes.hidden ? '0' : Math.min(notes.offsetHeight, window.innerHeight * 0.45) + 'px';
+  }
+
+  function show(n, push) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function (s, k) {
+      s.classList.toggle('is-active', k === i);
+      s.setAttribute('aria-hidden', k === i ? 'false' : 'true');
+    });
+    var note = slides[i].querySelector('.note');
+    noteText.textContent = note ? note.textContent.trim() : '—';
+    bar.style.width = ((i + 1) / slides.length * 100) + '%';
+    cur.textContent = i + 1;
+    if (push) { try { history.replaceState(null, '', '#' + (i + 1)); } catch (e) {} }
+    fit();
+  }
+
+  function step(d) {
+    if (!animate) { animate = true; document.body.classList.add('deck-animate'); }
+    show(i + d, true);
+  }
+
+  function reveal(slide) {
+    if (slide && slide.classList.contains('q')) { slide.classList.add('revealed');
+      var v = slide.querySelector('.verdict'); if (v) v.hidden = false; return true; }
+    return false;
+  }
+
+  document.getElementById('next').addEventListener('click', function () { step(1); });
+  document.getElementById('prev').addEventListener('click', function () { step(-1); });
+  document.getElementById('notesBtn').addEventListener('click', toggleNotes);
+
+  function toggleNotes() { notes.hidden = !notes.hidden; fit(); }
+
+  document.addEventListener('click', function (e) {
+    var opt = e.target.closest('.opt, .reveal');
+    if (opt) reveal(opt.closest('.slide'));
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var k = e.key, c = e.code;
+    if (k === 'ArrowRight' || k === 'PageDown') { e.preventDefault(); step(1); }
+    else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); step(-1); }
+    else if (k === ' ' || k === 'Spacebar') { e.preventDefault(); if (!reveal(slides[i])) step(1); }
+    else if (k === 'Home') { e.preventDefault(); show(0, true); }
+    else if (k === 'End') { e.preventDefault(); show(slides.length - 1, true); }
+    else if (c === 'KeyS') { e.preventDefault(); toggleNotes(); }
+    else if (c === 'KeyF') {
+      e.preventDefault();
+      if (document.fullscreenElement) { document.exitFullscreen(); }
+      else if (document.documentElement.requestFullscreen) { document.documentElement.requestFullscreen(); }
+    }
+  });
+
+  var x0 = null;
+  document.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', function (e) {
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 55) step(dx < 0 ? 1 : -1);
+    x0 = null;
+  }, { passive: true });
+
+  window.addEventListener('resize', fit);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+
+  var start = parseInt((location.hash || '').slice(1), 10);
+  show(isFinite(start) && start > 0 ? start - 1 : 0, false);
+  document.fonts && document.fonts.ready.then(fit);
+})();
+</script>
