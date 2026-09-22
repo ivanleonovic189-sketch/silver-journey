@@ -1,0 +1,35 @@
+{
+  "v": 4,
+  "createdOnFiles": { "v": 1, "at": "2026-09-22T00:00:00Z" },
+  "title": "Эмоциональный интеллект инженера",
+  "cover": "cover",
+  "order": [
+    "cover", "hook", "agenda",
+    "what", "model",
+    "myth", "evidence", "where",
+    "review", "incident", "client",
+    "tools", "formula", "develop",
+    "blitz", "q1", "q2", "q3", "q4", "q5", "key",
+    "takeaways", "end"
+  ],
+  "sections": {
+    "s1": { "description": "Открытие: почему при равных технических навыках карьеры расходятся", "start": "cover" },
+    "s2": { "description": "Что такое эмоциональный интеллект и из каких четырёх частей он состоит", "start": "what" },
+    "s3": { "description": "Почему это инженерная тема: исследования и точки, где ЭИ работает", "start": "myth" },
+    "s4": { "description": "Три рабочие ситуации: код-ревью, инцидент на проде, разговор с заказчиком", "start": "review" },
+    "s5": { "description": "Четыре приёма, формула я-сообщения и способы тренировки", "start": "tools" },
+    "s6": { "description": "Блиц: пять вопросов классу и разбор ответов", "start": "blitz" },
+    "s7": { "description": "Три вывода и финал с вопросами", "start": "takeaways" }
+  },
+  "faces": {
+    "rubik": {
+      "family": "Rubik",
+      "href": "https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap"
+    },
+    "ibm-plex-sans": {
+      "family": "IBM Plex Sans",
+      "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    }
+  },
+  "designSystems": []
+}
